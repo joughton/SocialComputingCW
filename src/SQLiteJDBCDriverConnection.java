@@ -21,7 +21,6 @@ public class SQLiteJDBCDriverConnection {
         Connection conn = null;
         
         try {
-            Class.forName("org.sqlite.JDBC");
             String url = "jdbc:sqlite:src/trainingset.db";
             // create a connection to the database
             conn = DriverManager.getConnection(url);
