@@ -152,7 +152,7 @@ public class SQLiteJDBCDriverConnection {
     		temp3 = temp3 + (temp1 * temp2);
     		
     	}
-    	
+
     	return temp3;
     	
     }
@@ -169,7 +169,7 @@ public class SQLiteJDBCDriverConnection {
 
     	}
     	
-    	Math.sqrt(temp1);
+    	temp1 = (float) Math.sqrt(temp1);
     	
     	for(int i = 0; i < sameRatings.size(); i++) {
     		
@@ -177,7 +177,7 @@ public class SQLiteJDBCDriverConnection {
 
     	}
     	
-    	Math.sqrt(temp2);
+    	temp2 = (float) Math.sqrt(temp2);
     	
     	return temp1 * temp2;
     	

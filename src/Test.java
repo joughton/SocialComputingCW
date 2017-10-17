@@ -17,7 +17,8 @@ public class Test {
 		u2.getRatings().put(4, 4);
 		u2.getRatings().put(5, 7);
 		
-		System.out.println(jdbc.similarityCoefficient(u1, u2));
+		System.out.println("Actual: " + 0.644902022);
+		System.out.println("Calculated: " + jdbc.similarityCoefficient(u1, u2));
 		
 	}
 
