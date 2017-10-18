@@ -1,0 +1,10 @@
+
+build/
+
+nbproject/
+
+src/trainingset\.db
+
+build\.xml
+
+manifest\.mf
