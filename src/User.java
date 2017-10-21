@@ -1,4 +1,5 @@
 import java.util.HashMap;
+import java.util.Map.Entry;
 
 public class User {
 	
@@ -16,6 +17,22 @@ public class User {
 
 	public HashMap<Integer, Integer> getRatings() {
 		return ratings;
+	}
+	
+	public float getAverageRating() {
+		
+		int sum = 0;
+		
+		for(Entry<Integer, Integer> entry : getRatings().entrySet()) {
+			
+			sum = sum + entry.getValue();
+			
+		}
+		
+		sum = sum/getRatings().size();
+		
+		return sum;
+		
 	}
 	
 }
