@@ -21,7 +21,7 @@ public class SQLiteJDBCDriverConnection {
         Connection conn = null;
         
         try {
-            String url = "jdbc:sqlite:src/trainingset.db";
+            String url = "jdbc:sqlite:C://sqlite/trainingsetdup.db";
             // create a connection to the database
             conn = DriverManager.getConnection(url);
 
@@ -52,11 +52,10 @@ public class SQLiteJDBCDriverConnection {
 
     }
 
-    public void selectDistinct() {
+    public void selectDistinct(Connection conn) {
         String myQuery = "SELECT DISTINCT userID FROM trainingset";
 
-        try (Connection conn = this.connect();
-                Statement stmt = conn.createStatement();
+        try (Statement stmt = conn.createStatement();
                 ResultSet rs = stmt.executeQuery(myQuery)) {
 
             while (rs.next()) {
@@ -115,6 +114,7 @@ public class SQLiteJDBCDriverConnection {
     }
 
     public float squareRoot(User u1, User u2, float u1Avg, float u2Avg, ArrayList<Integer> sameRatings) {
+    	
         float temp1 = 0;
         float temp2 = 0;
 
@@ -139,14 +139,94 @@ public class SQLiteJDBCDriverConnection {
 
         ArrayList<Integer> sameRatings = getSame(u1, u2);
 
-        float similarityValue = (sumMeanDifference(u1, u2, u1Avg, u2Avg, sameRatings) / (squareRoot(u1, u2, u1Avg, u2Avg, sameRatings)));
+        if(sameRatings.size() != 0) {
+        
+	        float similarityValue = (sumMeanDifference(u1, u2, u1Avg, u2Avg, sameRatings) / (squareRoot(u1, u2, u1Avg, u2Avg, sameRatings)));
+	
+	        return similarityValue;
+	        
+        } else {
+        	
+        	return 0;
+        	
+        }
+    }
+    
+    public void prediction(ResultSet rs) {
+    	
+    	String myQuery = "SELECT";
+    	
+    	
+    	
+    }
+    
+    public void createSimilarityMatrix(Connection conn) {
+    	
+        String myQuery = "CREATE TABLE IF NOT EXISTS simMatrix (rowValue integer, colValue integer, similarity integer)";
+        
+        int count = 0;
+        
+        try (Statement stmt = conn.createStatement()) {
 
-        return similarityValue;
+        	stmt.execute(myQuery);
+        	
+        } catch (SQLException e) {
+            System.out.println(e.getMessage());
+        }
+        
+        for(int i = 0; i < users.size(); i++) {
+        	
+        	for(int j = 0; j < users.size(); j++) {
+        		
+        		float simValue = 0;
+        		
+        		if (users.get(i).getUserID() == users.get(j).getUserID()) {
+        			
+        			simValue = 1;
+        			
+        		} else {		
+        			
+        			 simValue = similarityCoefficient(users.get(i), users.get(j));
+        			
+        		}
+        		
+        		String insertQuery = "INSERT INTO simMatrix VALUES (" + 
+        				users.get(i).getUserID() + ", " + users.get(j).getUserID() + ", " + simValue + ")";
+        		
+        		System.out.println("Count:" + count + "(" + 
+        				users.get(i).getUserID() + ", " + users.get(j).getUserID() + ", " + simValue + ")");
+        		
+        		count++;
+        		
+                try (Statement stmt = conn.createStatement();
+                        ResultSet rs = stmt.executeQuery(insertQuery)) {
+
+                } catch (SQLException e) {
+                    System.out.println(e.getMessage());
+                }
+        		
+        	}
+        	
+        }
+ 	
     }
 
     public static void main(String[] args) {
+    	
         SQLiteJDBCDriverConnection myJDBC = new SQLiteJDBCDriverConnection();
+        
+        try (Connection conn = SQLiteJDBCDriverConnection.connect();) {
 
-        myJDBC.selectDistinct();
+            myJDBC.selectDistinct(conn);
+            
+            myJDBC.createSimilarityMatrix(conn);
+            
+        	
+        } catch (SQLException e) {
+            System.out.println(e.getMessage());
+        }
+        
+
+
     }
 }
