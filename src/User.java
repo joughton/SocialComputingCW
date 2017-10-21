@@ -21,7 +21,7 @@ public class User {
 	
 	public float getAverageRating() {
 		
-		int sum = 0;
+		float sum = 0;
 		
 		for(Entry<Integer, Integer> entry : getRatings().entrySet()) {
 			

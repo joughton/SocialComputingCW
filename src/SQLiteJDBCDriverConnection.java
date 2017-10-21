@@ -7,6 +7,7 @@ import java.sql.Statement;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Map.Entry;
 
 /**
  *
@@ -54,7 +55,7 @@ public class SQLiteJDBCDriverConnection {
     }
 
     public void selectDistinct(Connection conn) {
-        String myQuery = "SELECT DISTINCT userID FROM trainingset";
+        String myQuery = "SELECT DISTINCT userID FROM trainingset WHERE userID % 13000 = 0";
 
         try (Statement stmt = conn.createStatement();
                 ResultSet rs = stmt.executeQuery(myQuery)) {
@@ -122,10 +123,26 @@ public class SQLiteJDBCDriverConnection {
 
         return temp1 * temp2;
     }
+    
+    public float averageRatings(User u1) {
+    	
+    	float u1Avg = 0;
+		
+    	for (Map.Entry<Integer, Integer> entry : u1.getRatings().entrySet()) {
+    		
+    		u1Avg = u1Avg + entry.getValue();
+    		
+    	}
+    	
+    	u1Avg = u1Avg / u1.getRatings().size();
+    	
+    	return u1Avg;
+    	
+    }
 
     public float similarityCoefficient(User u1, User u2) {
-        float u1Avg = u1.getAverageRating();
-        float u2Avg = u2.getAverageRating();
+        float u1Avg = /*averageRatings(u1);*/u1.getAverageRating();
+        float u2Avg = /*averageRatings(u2);*/u2.getAverageRating();
 
         ArrayList<Integer> sameRatings = getSame(u1, u2);
 
@@ -142,29 +159,65 @@ public class SQLiteJDBCDriverConnection {
         }
     }
     
-    public void prediction(Connection conn, User user, User item, int threshold) {	//20-60
+    public float prediction(Connection conn, User user, User item, int threshold) {	//20-60
     	
-    	float userAvg = user.getAverageRating();
+    	float prediction = user.getAverageRating();
     	
-    	String myQuery = "SELECT colValue FROM simMatrix WHERE rowValue = " + user.getUserID() + "AND similarity > 0.5";
+    	String indexRowValue = "CREATE INDEX rowIndex ON simMatrix (rowValue)";
     	
-    	User[] neighbourhood = new User[threshold];
+    	String indexSimilarity = "CREATE INDEX simIndex ON simMatrix (similarity)";
     	
-    	int count = 0;
+    	String myQuery = "SELECT colValue, similarity FROM simMatrix WHERE rowValue = " + user.getUserID() + " ORDER BY similarity LIMIT " + threshold;
     	
-        try (Statement stmt = conn.createStatement();
-        		  ResultSet rs = stmt.executeQuery(myQuery)) {
+    	HashMap<Integer, Float> neighbourhood = new HashMap<Integer, Float>();
+    	
+        try (Statement stmt = conn.createStatement()) {
+        	
+        	stmt.execute(indexRowValue);
+    		stmt.execute(indexSimilarity);
+    		ResultSet rs = stmt.executeQuery(myQuery);
 
             while (rs.next()) {
 
-            	neighbourhood[count] = users.get(rs.getInt(1));
-            	count++;
+            	neighbourhood.put(rs.getInt(1), rs.getFloat(2));
             	
             }
         	
         } catch (SQLException e) {
             System.out.println(e.getMessage());
         }
+        
+        float numerator = 0;
+        
+        for(Entry<Integer, Float> entry : neighbourhood.entrySet()) {
+        		
+        	numerator = numerator + (entry.getValue() * (users.get(entry.getKey()).getRatings().get(item.getUserID()) - users.get(entry.getKey()).getAverageRating()));
+        		
+        }
+        
+        float denominator = 0;
+        
+        for(Entry<Integer, Float> entry : neighbourhood.entrySet()) {
+    		
+        	denominator = denominator + users.get(entry.getKey()).getRatings().get(item.getUserID());
+        		
+        }
+
+        prediction = prediction + (numerator/denominator);
+        
+        if(prediction < 1) {
+        	
+        	prediction = 1;
+        	
+        } else if (prediction > 10) {
+        	
+        	prediction = 10;
+        	
+        }
+        
+        System.out.println(prediction);
+        
+        return prediction;
     	
     }
     
@@ -185,7 +238,7 @@ public class SQLiteJDBCDriverConnection {
             System.out.println(e.getMessage());
         }
         
-        for(int i = 0; i < users.size(); i++) {
+        /*for(int i = 0; i < users.size(); i++) {
         	
         	for(int j = 0; j < users.size(); j++) {
         		
@@ -199,18 +252,35 @@ public class SQLiteJDBCDriverConnection {
         			
         			 simValue = similarityCoefficient(users.get(i), users.get(j));
         			
-        		}
-        		
+        		}*/
+        
+        for (Entry<Integer, User> entry : users.entrySet()) {
+        	
+        	float simValue = 0;
+        	
+        	for (Entry<Integer, User> entryJ : users.entrySet()) {
+    		
+	    		if (entry.getValue().getUserID() == entryJ.getValue().getUserID()) {
+	    			
+	    			simValue = 1;
+	    			
+	    		} else {		
+	    			
+	    			 simValue = similarityCoefficient(entry.getValue(), entryJ.getValue());
+	    			
+	    		}
+
         		String insertQuery = "INSERT INTO simMatrix VALUES (" + 
-        				users.get(i).getUserID() + ", " + users.get(j).getUserID() + ", " + simValue + ")";
+        				entry.getValue().getUserID() + ", " + entryJ.getValue().getUserID() + ", " + simValue + ")";
         		
-        		System.out.println("Count:" + count + "(" + 
-        				users.get(i).getUserID() + ", " + users.get(j).getUserID() + ", " + simValue + ")");
+        		//System.out.println("Count:" + count + "(" + 
+        		//		entry.getValue().getUserID() + ", " + entryJ.getValue().getUserID() + ", " + simValue + ")");
         		
         		count++;
         		
-                try (Statement stmt = conn.createStatement();
-                        ResultSet rs = stmt.executeQuery(insertQuery)) {
+                try (Statement stmt = conn.createStatement()) {
+                	
+                	  stmt.execute(insertQuery);
 
                 } catch (SQLException e) {
                     System.out.println(e.getMessage());
@@ -221,6 +291,57 @@ public class SQLiteJDBCDriverConnection {
         }
  	
     }
+    
+	public void makePredictions(Connection conn) {
+		
+		String myQuery = "SELECT user, item FROM predictions";
+		
+    	String indexUser = "CREATE INDEX userIndexPred ON predictions (user)";
+    	
+    	String indexItem = "CREATE INDEX itemIndexPred ON predictions (item)";
+    	
+    	String dropIndexUser = "DROP INDEX userIndexPred";
+    	
+    	String dropIndexItem = "DROP INDEX itemIndexPred";
+    	
+    	System.out.println("Here1");
+
+        try (Statement stmt = conn.createStatement()) {
+        	System.out.println("Here2");
+    		//stmt.execute(indexUser);
+    		//stmt.execute(indexItem);
+    		ResultSet rs = stmt.executeQuery(myQuery);
+    		//stmt.execute(dropIndexUser);
+    		//stmt.execute(dropIndexItem);
+            while (rs.next()) {
+            	
+            	if (rs.getInt(1) % 13000 == 0) {
+
+	            	float prediction = prediction(conn, users.get(rs.getInt(1)), users.get(rs.getInt(2)), 60);
+	            	
+	            	String insertQuery = "UPDATE predictions SET prediction = " + prediction + " WHERE user = " + rs.getInt(1) + " AND item = " + rs.getInt(2);
+	            	
+	            	stmt.execute(insertQuery);
+	            	
+            	}
+            	
+            }
+        	
+        } catch (SQLException e) {
+            System.out.println(e.getMessage());
+        }
+		
+	}
+
+	public void printNumberOfRatings() {
+
+		for(Entry<Integer, User> entry : users.entrySet()) {
+			
+			System.out.println(entry.getValue().getRatings().size());
+
+		}
+
+	}
 
     public static void main(String[] args) {
     	
@@ -231,6 +352,8 @@ public class SQLiteJDBCDriverConnection {
             myJDBC.selectDistinct(conn);
             
             myJDBC.createSimilarityMatrix(conn);
+            
+            myJDBC.makePredictions(conn);
             
         	
         } catch (SQLException e) {
