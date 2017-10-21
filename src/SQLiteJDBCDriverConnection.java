@@ -5,6 +5,7 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.Map;
 
 /**
@@ -14,7 +15,7 @@ import java.util.Map;
 public class SQLiteJDBCDriverConnection {
 
     ArrayList<Integer> distinctUsers = new ArrayList<Integer>();
-    ArrayList<User> users = new ArrayList<User>();
+    HashMap<Integer, User> users = new HashMap<Integer, User>();
     User temp;
 
     public static Connection connect() {
@@ -45,7 +46,7 @@ public class SQLiteJDBCDriverConnection {
                 temp.getRatings().put(rs.getInt(1), rs.getInt(2));
             }
 
-            users.add(temp);
+            users.put(user, temp);
         } catch (SQLException e) {
             System.out.println(e.getMessage());
         }
@@ -75,17 +76,6 @@ public class SQLiteJDBCDriverConnection {
         }
 
         System.out.println(distinctUsers.size());
-    }
-
-    public float averageRatings(User u1) {
-        float u1Avg = 0;
-
-        for (Map.Entry<Integer, Integer> entry : u1.getRatings().entrySet()) {
-            u1Avg = u1Avg + entry.getValue();
-        }
-        u1Avg = u1Avg / u1.getRatings().size();
-
-        return u1Avg;
     }
 
     public ArrayList<Integer> getSame(User u1, User u2) {
@@ -134,8 +124,8 @@ public class SQLiteJDBCDriverConnection {
     }
 
     public float similarityCoefficient(User u1, User u2) {
-        float u1Avg = averageRatings(u1);
-        float u2Avg = averageRatings(u2);
+        float u1Avg = u1.getAverageRating();
+        float u2Avg = u2.getAverageRating();
 
         ArrayList<Integer> sameRatings = getSame(u1, u2);
 
@@ -152,22 +142,43 @@ public class SQLiteJDBCDriverConnection {
         }
     }
     
-    public void prediction(ResultSet rs) {
+    public void prediction(Connection conn, User user, User item, int threshold) {	//20-60
     	
-    	String myQuery = "SELECT";
+    	float userAvg = user.getAverageRating();
     	
+    	String myQuery = "SELECT colValue FROM simMatrix WHERE rowValue = " + user.getUserID() + "AND similarity > 0.5";
     	
+    	User[] neighbourhood = new User[threshold];
+    	
+    	int count = 0;
+    	
+        try (Statement stmt = conn.createStatement();
+        		  ResultSet rs = stmt.executeQuery(myQuery)) {
+
+            while (rs.next()) {
+
+            	neighbourhood[count] = users.get(rs.getInt(1));
+            	count++;
+            	
+            }
+        	
+        } catch (SQLException e) {
+            System.out.println(e.getMessage());
+        }
     	
     }
     
     public void createSimilarityMatrix(Connection conn) {
     	
-        String myQuery = "CREATE TABLE IF NOT EXISTS simMatrix (rowValue integer, colValue integer, similarity integer)";
+    	String dropQuery = "DROP TABLE IF EXISTS simMatrix";
+    	
+        String myQuery = "CREATE TABLE IF NOT EXISTS simMatrix (rowValue integer, colValue integer, similarity float)";
         
         int count = 0;
         
         try (Statement stmt = conn.createStatement()) {
 
+        	stmt.execute(dropQuery);
         	stmt.execute(myQuery);
         	
         } catch (SQLException e) {
