@@ -10,5 +10,3 @@ build\.xml
 manifest\.mf
 
 src/trainingsetdup\.db
-
-trainingsetdup\.db

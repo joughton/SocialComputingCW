@@ -23,12 +23,7 @@ public class SQLiteJDBCDriverConnection {
         Connection conn = null;
 
         try {
-            String url = "";
-            if (System.getProperty("os.name").toLowerCase().contains("win")) {
-                url = "jdbc:sqlite:C:/sqlite/trainingsetdup.db";
-            } else {
-                url = "jdbc:sqlite:C://sqlite/trainingsetdup.db";
-            }
+            String url = "jdbc:sqlite:C://sqlite/trainingsetdup.db";
             // create a connection to the database
             conn = DriverManager.getConnection(url);
 
@@ -60,7 +55,7 @@ public class SQLiteJDBCDriverConnection {
     }
 
     public void selectDistinct(Connection conn) {
-        String myQuery = "SELECT DISTINCT userID FROM trainingset";
+        String myQuery = "SELECT DISTINCT userID FROM trainingset WHERE userID % 13000 = 0";
 
         try (Statement stmt = conn.createStatement();
                 ResultSet rs = stmt.executeQuery(myQuery)) {
@@ -242,8 +237,8 @@ public class SQLiteJDBCDriverConnection {
                 String insertQuery = "INSERT INTO simMatrix VALUES ("
                         + entry.getValue().getUserID() + ", " + entryJ.getValue().getUserID() + ", " + simValue + ")";
 
-                System.out.println("Count:" + count + "(" + 
-                		entry.getValue().getUserID() + ", " + entryJ.getValue().getUserID() + ", " + simValue + ")");
+                //System.out.println("Count:" + count + "(" + 
+                //		entry.getValue().getUserID() + ", " + entryJ.getValue().getUserID() + ", " + simValue + ")");
                 count++;
 
                 try (Statement stmt = conn.createStatement()) {
@@ -272,11 +267,13 @@ public class SQLiteJDBCDriverConnection {
             //stmt.execute(dropIndexUser);
             //stmt.execute(dropIndexItem);
             while (rs.next()) {
+                if (rs.getInt(1) % 13000 == 0) {
                     float prediction = prediction(conn, users.get(rs.getInt(1)), users.get(rs.getInt(2)), 60);
 
                     String insertQuery = "UPDATE predictions SET prediction = " + prediction + " WHERE user = " + rs.getInt(1) + " AND item = " + rs.getInt(2);
 
                     stmt.execute(insertQuery);
+                }
             }
         } catch (SQLException e) {
             System.out.println(e.getMessage());
