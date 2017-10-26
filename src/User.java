@@ -19,6 +19,7 @@ public class User {
 		return ratings;
 	}
 	
+        //get avg variable
 	public float getAverageRating() {
 		
 		float sum = 0;

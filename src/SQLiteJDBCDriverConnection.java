@@ -82,6 +82,7 @@ public class SQLiteJDBCDriverConnection {
     public ArrayList<Integer> getSame(User u1, User u2) {
         ArrayList<Integer> sameRatings = new ArrayList<Integer>();
 
+        //check bigger set
         for (Map.Entry<Integer, Integer> entry : u1.getRatings().entrySet()) {
             if (u2.getRatings().containsKey(entry.getKey())) {
                 sameRatings.add(entry.getKey());
@@ -91,6 +92,7 @@ public class SQLiteJDBCDriverConnection {
         return sameRatings;
     }
 
+    //combine those 2
     public float sumMeanDifference(User u1, User u2, float u1Avg, float u2Avg, ArrayList<Integer> sameRatings) {
         float temp3 = 0;
 
@@ -231,16 +233,18 @@ public class SQLiteJDBCDriverConnection {
                 if (entry.getValue().getUserID() == entryJ.getValue().getUserID()) {
                     simValue = 1;
                 } else {
-                    simValue = similarityCoefficient(entry.getValue(), entryJ.getValue());
+                    //simValue = similarityCoefficient(entry.getValue(), entryJ.getValue());
                 }
 
                 String insertQuery = "INSERT INTO simMatrix VALUES ("
                         + entry.getValue().getUserID() + ", " + entryJ.getValue().getUserID() + ", " + simValue + ")";
 
-                //System.out.println("Count:" + count + "(" + 
-                //		entry.getValue().getUserID() + ", " + entryJ.getValue().getUserID() + ", " + simValue + ")");
+                System.out.println("Count:" + count + "(" + 
+                		entry.getValue().getUserID() + ", " + entryJ.getValue().getUserID() + ", " + simValue + ")");
                 count++;
 
+                //begin commit sqlite
+                //prepared statements
                 try (Statement stmt = conn.createStatement()) {
                     stmt.execute(insertQuery);
                 } catch (SQLException e) {
