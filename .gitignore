@@ -8,3 +8,5 @@ src/trainingset\.db
 build\.xml
 
 manifest\.mf
+
+src/trainingsetdup\.db
