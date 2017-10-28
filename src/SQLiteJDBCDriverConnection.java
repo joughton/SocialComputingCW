@@ -9,6 +9,8 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 /**
  *
@@ -27,7 +29,6 @@ public class SQLiteJDBCDriverConnection {
             String url = "jdbc:sqlite:C://sqlite/trainingsetdup.db";
             // create a connection to the database
             conn = DriverManager.getConnection(url);
-            conn.setAutoCommit(false);
 
             System.out.println("Connection to SQLite has been established.");
         } catch (Exception e) {
@@ -107,10 +108,12 @@ public class SQLiteJDBCDriverConnection {
         float numerator = 0;
         float u1MeanDiffSq = 0;
         float u2MeanDiffSq = 0;
-
+         float u1MeanDiff = 0;
+         float u2MeanDiff = 0;
+         
         for (int i = 0; i < sameRatings.size(); i++) {
-            float u1MeanDiff = u1.getRatings().get(sameRatings.get(i)) - u1Avg;
-            float u2MeanDiff = u2.getRatings().get(sameRatings.get(i)) - u2Avg;
+            u1MeanDiff = u1.getRatings().get(sameRatings.get(i)) - u1Avg;
+            u2MeanDiff = u2.getRatings().get(sameRatings.get(i)) - u2Avg;
             numerator += u1MeanDiff * u2MeanDiff;
 
             u1MeanDiffSq += u1MeanDiff * u1MeanDiff;
@@ -233,43 +236,43 @@ public class SQLiteJDBCDriverConnection {
         String begin = "BEGIN;";
         String commit = "COMMIT;";
 
-        String insertQuery = "INSERT INTO simMatrix(rowValue, colValue, similarity) VALUES (?,?,?)";
-        float simValue;
-        
-        for (Entry<Integer, User> entry : users.entrySet()) {
-            simValue = 0;
+        String insertQuery = "INSERT INTO simMatrix VALUES (?,?,?)";
+        float simValue = 0;
+        try {
+            conn.setAutoCommit(false);
+            insert = conn.prepareStatement(insertQuery);
 
-            for (Entry<Integer, User> entryJ : users.entrySet()) {
-                if (entry.getValue().getUserID() == entryJ.getValue().getUserID()) {
-                    simValue = 1;
-                } else {
-                    //simValue = similarityCoefficient(entry.getValue(), entryJ.getValue());
-                }
+            for (Entry<Integer, User> entry : users.entrySet()) { 
+                for (Entry<Integer, User> entryJ : users.entrySet()) {
+                    if (entry.getValue().getUserID() == entryJ.getValue().getUserID()) {
+                        simValue = 1;
+                    } else {
+                        simValue = similarityCoefficient(entry.getValue(), entryJ.getValue());
+                    }
 
-                //System.out.println("Count:" + count + "(" + 
-                //entry.getValue().getUserID() + ", " + entryJ.getValue().getUserID() + ", " + simValue + ")");
-                try (Statement stmt = conn.createStatement()) {
-                    insert = conn.prepareStatement(insertQuery);
                     insert.setInt(1, entry.getValue().getUserID());
                     insert.setInt(2, entryJ.getValue().getUserID());
                     insert.setFloat(3, simValue);
+                    insert.addBatch();
 
-                    if (count == 0) {
-                        //stmt.execute(begin);
-                    } else if (count % 10000 == 0) {
+                    if (count % 1000 == 0) {
+                        insert.executeBatch();
                         conn.commit();
-                        //stmt.execute(begin);
                         System.out.println("Count:" + count + "("
                                 + entry.getValue().getUserID() + ", " + entryJ.getValue().getUserID() + ", " + simValue + ")");
                     }
 
-                    //insert.executeUpdate();
-                    insert.close();
                     count++;
-                    //stmt.execute(insertQuery);
-                } catch (SQLException e) {
-                    System.out.println(e.getMessage());
                 }
+            }
+        } catch (SQLException e) {
+            System.out.println(e.getMessage());
+        } finally {
+            try {
+                insert.close();
+                conn.setAutoCommit(true);
+            } catch (SQLException ex) {
+                Logger.getLogger(SQLiteJDBCDriverConnection.class.getName()).log(Level.SEVERE, null, ex);
             }
         }
     }
