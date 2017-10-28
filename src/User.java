@@ -11,7 +11,6 @@ public class User {
     public User(int userID) {
         super();
         this.userID = userID;
-        this.average = computeAverage();
     }
 
     public int getUserID() {
@@ -27,15 +26,14 @@ public class User {
         return average;
     }
     
-    public float computeAverage() {
-        float sum = 0;
+    public void computeAverage() {
+        this.average = 0;
         
         for (Entry<Integer, Integer> entry : getRatings().entrySet()) {
-            sum = sum + entry.getValue();
+            this.average = this.average + entry.getValue();
         }
-        sum = sum / getRatings().size();
-
-        return sum;
+        
+        this.average = this.average / getRatings().size();
     }
 
 }

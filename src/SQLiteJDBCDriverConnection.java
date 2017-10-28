@@ -27,6 +27,7 @@ public class SQLiteJDBCDriverConnection {
             String url = "jdbc:sqlite:C://sqlite/trainingsetdup.db";
             // create a connection to the database
             conn = DriverManager.getConnection(url);
+            conn.setAutoCommit(false);
 
             System.out.println("Connection to SQLite has been established.");
         } catch (Exception e) {
@@ -48,6 +49,7 @@ public class SQLiteJDBCDriverConnection {
                 temp.getRatings().put(rs.getInt(1), rs.getInt(2));
             }
 
+            temp.computeAverage();
             users.put(user, temp);
         } catch (SQLException e) {
             System.out.println(e.getMessage());
@@ -83,10 +85,17 @@ public class SQLiteJDBCDriverConnection {
     public ArrayList<Integer> getSame(User u1, User u2) {
         ArrayList<Integer> sameRatings = new ArrayList<Integer>();
 
-        //check bigger set
-        for (Map.Entry<Integer, Integer> entry : u1.getRatings().entrySet()) {
-            if (u2.getRatings().containsKey(entry.getKey())) {
-                sameRatings.add(entry.getKey());
+        if (u1.getRatings().size() < u2.getRatings().size()) {
+            for (Map.Entry<Integer, Integer> entry : u1.getRatings().entrySet()) {
+                if (u2.getRatings().containsKey(entry.getKey())) {
+                    sameRatings.add(entry.getKey());
+                }
+            }
+        } else {
+            for (Map.Entry<Integer, Integer> entry : u2.getRatings().entrySet()) {
+                if (u1.getRatings().containsKey(entry.getKey())) {
+                    sameRatings.add(entry.getKey());
+                }
             }
         }
 
@@ -94,8 +103,8 @@ public class SQLiteJDBCDriverConnection {
     }
 
     public float numeratorAndDenominator(User u1, User u2, float u1Avg, float u2Avg, ArrayList<Integer> sameRatings) {
-        
-    	float numerator = 0;
+
+        float numerator = 0;
         float u1MeanDiffSq = 0;
         float u2MeanDiffSq = 0;
 
@@ -103,16 +112,16 @@ public class SQLiteJDBCDriverConnection {
             float u1MeanDiff = u1.getRatings().get(sameRatings.get(i)) - u1Avg;
             float u2MeanDiff = u2.getRatings().get(sameRatings.get(i)) - u2Avg;
             numerator += u1MeanDiff * u2MeanDiff;
-            
+
             u1MeanDiffSq += u1MeanDiff * u1MeanDiff;
             u2MeanDiffSq += u2MeanDiff * u2MeanDiff;
         }
-        
+
         u1MeanDiffSq = (float) Math.sqrt(u1MeanDiffSq);
         u2MeanDiffSq = (float) Math.sqrt(u2MeanDiffSq);
         float deonominator = u1MeanDiffSq * u2MeanDiffSq;
 
-        return numerator/deonominator;
+        return numerator / deonominator;
     }
 
     public float squareRoot(User u1, User u2, float u1Avg, float u2Avg, ArrayList<Integer> sameRatings) {
@@ -163,11 +172,11 @@ public class SQLiteJDBCDriverConnection {
 
     public float prediction(Connection conn, User user, User item, int threshold) {	//20-60
         float prediction = user.getAverageRating();
-        
+
         String indexRowValue = "CREATE INDEX rowIndex ON simMatrix (rowValue)";
         String indexSimilarity = "CREATE INDEX simIndex ON simMatrix (similarity)";
         String myQuery = "SELECT colValue, similarity FROM simMatrix WHERE rowValue = " + user.getUserID() + " ORDER BY similarity LIMIT " + threshold;
-        
+
         HashMap<Integer, Float> neighbourhood = new HashMap<Integer, Float>();
 
         try (Statement stmt = conn.createStatement()) {
@@ -220,59 +229,42 @@ public class SQLiteJDBCDriverConnection {
             System.out.println(e.getMessage());
         }
 
-        /*for(int i = 0; i < users.size(); i++) {
-        	
-        	for(int j = 0; j < users.size(); j++) {
-        		
-        		float simValue = 0;
-        		
-        		if (users.get(i).getUserID() == users.get(j).getUserID()) {
-        			
-        			simValue = 1;
-        			
-        		} else {		
-        			
-        			 simValue = similarityCoefficient(users.get(i), users.get(j));
-        			
-        		}*/
         PreparedStatement insert = null;
+        String begin = "BEGIN;";
+        String commit = "COMMIT;";
+
+        String insertQuery = "INSERT INTO simMatrix(rowValue, colValue, similarity) VALUES (?,?,?)";
+        float simValue;
         
         for (Entry<Integer, User> entry : users.entrySet()) {
-            float simValue = 0;
+            simValue = 0;
 
             for (Entry<Integer, User> entryJ : users.entrySet()) {
                 if (entry.getValue().getUserID() == entryJ.getValue().getUserID()) {
                     simValue = 1;
                 } else {
-                    simValue = similarityCoefficient(entry.getValue(), entryJ.getValue());
+                    //simValue = similarityCoefficient(entry.getValue(), entryJ.getValue());
                 }
 
-                
-                String begin = "BEGIN;";
-                String commit = "COMMIT;";
-                
-                String insertQuery = "INSERT INTO simMatrix VALUES ("
-                        + entry.getValue().getUserID() + ", " + entryJ.getValue().getUserID() + ", " + simValue + ")";
-
                 //System.out.println("Count:" + count + "(" + 
-                		//entry.getValue().getUserID() + ", " + entryJ.getValue().getUserID() + ", " + simValue + ")");
-                
-
-                //begin commit sqlite
-                //prepared statements
+                //entry.getValue().getUserID() + ", " + entryJ.getValue().getUserID() + ", " + simValue + ")");
                 try (Statement stmt = conn.createStatement()) {
                     insert = conn.prepareStatement(insertQuery);
-                    insert.executeUpdate();
-                    
+                    insert.setInt(1, entry.getValue().getUserID());
+                    insert.setInt(2, entryJ.getValue().getUserID());
+                    insert.setFloat(3, simValue);
+
                     if (count == 0) {
-                        stmt.execute(begin);
-                    } else if (count % 1000 == 0) {
-                        stmt.execute(commit);
-                        stmt.execute(begin);
-                        System.out.println("Count:" + count + "(" + 
-                		entry.getValue().getUserID() + ", " + entryJ.getValue().getUserID() + ", " + simValue + ")");
+                        //stmt.execute(begin);
+                    } else if (count % 10000 == 0) {
+                        conn.commit();
+                        //stmt.execute(begin);
+                        System.out.println("Count:" + count + "("
+                                + entry.getValue().getUserID() + ", " + entryJ.getValue().getUserID() + ", " + simValue + ")");
                     }
-       
+
+                    //insert.executeUpdate();
+                    insert.close();
                     count++;
                     //stmt.execute(insertQuery);
                 } catch (SQLException e) {
@@ -300,12 +292,12 @@ public class SQLiteJDBCDriverConnection {
             //stmt.execute(dropIndexItem);
             while (rs.next()) {
                 //if (rs.getInt(1) % 13000 == 0) {
-                    float prediction = prediction(conn, users.get(rs.getInt(1)), users.get(rs.getInt(2)), 60);
+                float prediction = prediction(conn, users.get(rs.getInt(1)), users.get(rs.getInt(2)), 60);
 
-                    String insertQuery = "UPDATE predictions SET prediction = " + prediction + " WHERE user = " + rs.getInt(1) + " AND item = " + rs.getInt(2);
+                String insertQuery = "UPDATE predictions SET prediction = " + prediction + " WHERE user = " + rs.getInt(1) + " AND item = " + rs.getInt(2);
 
-                    stmt.execute(insertQuery);
-               // }
+                stmt.execute(insertQuery);
+                // }
             }
         } catch (SQLException e) {
             System.out.println(e.getMessage());
