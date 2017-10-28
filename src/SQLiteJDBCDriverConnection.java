@@ -1,6 +1,7 @@
 
 import java.sql.Connection;
 import java.sql.DriverManager;
+import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
@@ -55,7 +56,7 @@ public class SQLiteJDBCDriverConnection {
     }
 
     public void selectDistinct(Connection conn) {
-        String myQuery = "SELECT DISTINCT userID FROM trainingset WHERE userID % 13000 = 0";
+        String myQuery = "SELECT DISTINCT userID FROM trainingset";
 
         try (Statement stmt = conn.createStatement();
                 ResultSet rs = stmt.executeQuery(myQuery)) {
@@ -138,8 +139,8 @@ public class SQLiteJDBCDriverConnection {
     }
 
     public float similarityCoefficient(User u1, User u2) {
-        float u1Avg = /*averageRatings(u1);*/ u1.getAverageRating();
-        float u2Avg = /*averageRatings(u2);*/ u2.getAverageRating();
+        float u1Avg = u1.getAverageRating();
+        float u2Avg = u2.getAverageRating();
 
         ArrayList<Integer> sameRatings = getSame(u1, u2);
 
@@ -226,6 +227,8 @@ public class SQLiteJDBCDriverConnection {
         			 simValue = similarityCoefficient(users.get(i), users.get(j));
         			
         		}*/
+        PreparedStatement insert = null;
+        
         for (Entry<Integer, User> entry : users.entrySet()) {
             float simValue = 0;
 
@@ -236,17 +239,34 @@ public class SQLiteJDBCDriverConnection {
                     //simValue = similarityCoefficient(entry.getValue(), entryJ.getValue());
                 }
 
+                
+                String begin = "BEGIN;";
+                String commit = "COMMIT;";
+                
                 String insertQuery = "INSERT INTO simMatrix VALUES ("
                         + entry.getValue().getUserID() + ", " + entryJ.getValue().getUserID() + ", " + simValue + ")";
 
-                System.out.println("Count:" + count + "(" + 
-                		entry.getValue().getUserID() + ", " + entryJ.getValue().getUserID() + ", " + simValue + ")");
-                count++;
+                //System.out.println("Count:" + count + "(" + 
+                		//entry.getValue().getUserID() + ", " + entryJ.getValue().getUserID() + ", " + simValue + ")");
+                
 
                 //begin commit sqlite
                 //prepared statements
                 try (Statement stmt = conn.createStatement()) {
-                    stmt.execute(insertQuery);
+                    insert = conn.prepareStatement(insertQuery);
+                    insert.executeUpdate();
+                    
+                    if (count == 0) {
+                        stmt.execute(begin);
+                    } else if (count % 1000 == 0) {
+                        stmt.execute(commit);
+                        stmt.execute(begin);
+                        System.out.println("Count:" + count + "(" + 
+                		entry.getValue().getUserID() + ", " + entryJ.getValue().getUserID() + ", " + simValue + ")");
+                    }
+       
+                    count++;
+                    //stmt.execute(insertQuery);
                 } catch (SQLException e) {
                     System.out.println(e.getMessage());
                 }
@@ -271,13 +291,13 @@ public class SQLiteJDBCDriverConnection {
             //stmt.execute(dropIndexUser);
             //stmt.execute(dropIndexItem);
             while (rs.next()) {
-                if (rs.getInt(1) % 13000 == 0) {
+                //if (rs.getInt(1) % 13000 == 0) {
                     float prediction = prediction(conn, users.get(rs.getInt(1)), users.get(rs.getInt(2)), 60);
 
                     String insertQuery = "UPDATE predictions SET prediction = " + prediction + " WHERE user = " + rs.getInt(1) + " AND item = " + rs.getInt(2);
 
                     stmt.execute(insertQuery);
-                }
+               // }
             }
         } catch (SQLException e) {
             System.out.println(e.getMessage());
