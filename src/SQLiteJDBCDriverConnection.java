@@ -93,7 +93,6 @@ public class SQLiteJDBCDriverConnection {
         return sameRatings;
     }
 
-    //combine those 2
     public float numeratorAndDenominator(User u1, User u2, float u1Avg, float u2Avg, ArrayList<Integer> sameRatings) {
         
     	float numerator = 0;
@@ -103,10 +102,10 @@ public class SQLiteJDBCDriverConnection {
         for (int i = 0; i < sameRatings.size(); i++) {
             float u1MeanDiff = u1.getRatings().get(sameRatings.get(i)) - u1Avg;
             float u2MeanDiff = u2.getRatings().get(sameRatings.get(i)) - u2Avg;
-            numerator = numerator + (u1MeanDiff * u2MeanDiff);
+            numerator += u1MeanDiff * u2MeanDiff;
             
-            u1MeanDiffSq = u1MeanDiffSq + ((u1.getRatings().get(sameRatings.get(i)) - u1Avg) * (u1.getRatings().get(sameRatings.get(i)) - u1Avg));
-            u2MeanDiffSq = u2MeanDiffSq + ((u2.getRatings().get(sameRatings.get(i)) - u2Avg) * (u2.getRatings().get(sameRatings.get(i)) - u2Avg));
+            u1MeanDiffSq += u1MeanDiff * u1MeanDiff;
+            u2MeanDiffSq += u2MeanDiff * u2MeanDiff;
         }
         
         u1MeanDiffSq = (float) Math.sqrt(u1MeanDiffSq);
@@ -116,7 +115,7 @@ public class SQLiteJDBCDriverConnection {
         return numerator/deonominator;
     }
 
-    /*public float squareRoot(User u1, User u2, float u1Avg, float u2Avg, ArrayList<Integer> sameRatings) {
+    public float squareRoot(User u1, User u2, float u1Avg, float u2Avg, ArrayList<Integer> sameRatings) {
         float temp4 = 0;
         float temp5 = 0;
 
@@ -133,7 +132,7 @@ public class SQLiteJDBCDriverConnection {
         temp5 = (float) Math.sqrt(temp5);
 
         return temp4 * temp5;
-    }*/
+    }
 
     public float averageRatings(User u1) {
         float u1Avg = 0;
@@ -245,7 +244,7 @@ public class SQLiteJDBCDriverConnection {
                 if (entry.getValue().getUserID() == entryJ.getValue().getUserID()) {
                     simValue = 1;
                 } else {
-                    //simValue = similarityCoefficient(entry.getValue(), entryJ.getValue());
+                    simValue = similarityCoefficient(entry.getValue(), entryJ.getValue());
                 }
 
                 
