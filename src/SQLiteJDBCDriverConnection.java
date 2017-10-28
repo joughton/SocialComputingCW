@@ -94,37 +94,46 @@ public class SQLiteJDBCDriverConnection {
     }
 
     //combine those 2
-    public float sumMeanDifference(User u1, User u2, float u1Avg, float u2Avg, ArrayList<Integer> sameRatings) {
-        float temp3 = 0;
+    public float numeratorAndDenominator(User u1, User u2, float u1Avg, float u2Avg, ArrayList<Integer> sameRatings) {
+        
+    	float numerator = 0;
+        float u1MeanDiffSq = 0;
+        float u2MeanDiffSq = 0;
 
         for (int i = 0; i < sameRatings.size(); i++) {
-            float temp1 = u1.getRatings().get(sameRatings.get(i)) - u1Avg;
-            float temp2 = u2.getRatings().get(sameRatings.get(i)) - u2Avg;
-            temp3 = temp3 + (temp1 * temp2);
-
+            float u1MeanDiff = u1.getRatings().get(sameRatings.get(i)) - u1Avg;
+            float u2MeanDiff = u2.getRatings().get(sameRatings.get(i)) - u2Avg;
+            numerator = numerator + (u1MeanDiff * u2MeanDiff);
+            
+            u1MeanDiffSq = u1MeanDiffSq + ((u1.getRatings().get(sameRatings.get(i)) - u1Avg) * (u1.getRatings().get(sameRatings.get(i)) - u1Avg));
+            u2MeanDiffSq = u2MeanDiffSq + ((u2.getRatings().get(sameRatings.get(i)) - u2Avg) * (u2.getRatings().get(sameRatings.get(i)) - u2Avg));
         }
+        
+        u1MeanDiffSq = (float) Math.sqrt(u1MeanDiffSq);
+        u2MeanDiffSq = (float) Math.sqrt(u2MeanDiffSq);
+        float deonominator = u1MeanDiffSq * u2MeanDiffSq;
 
-        return temp3;
+        return numerator/deonominator;
     }
 
-    public float squareRoot(User u1, User u2, float u1Avg, float u2Avg, ArrayList<Integer> sameRatings) {
-        float temp1 = 0;
-        float temp2 = 0;
+    /*public float squareRoot(User u1, User u2, float u1Avg, float u2Avg, ArrayList<Integer> sameRatings) {
+        float temp4 = 0;
+        float temp5 = 0;
 
         for (int i = 0; i < sameRatings.size(); i++) {
-            temp1 = temp1 + ((u1.getRatings().get(sameRatings.get(i)) - u1Avg) * (u1.getRatings().get(sameRatings.get(i)) - u1Avg));
+            temp4 = temp4 + ((u1.getRatings().get(sameRatings.get(i)) - u1Avg) * (u1.getRatings().get(sameRatings.get(i)) - u1Avg));
         }
 
-        temp1 = (float) Math.sqrt(temp1);
+        temp4 = (float) Math.sqrt(temp4);
 
         for (int i = 0; i < sameRatings.size(); i++) {
-            temp2 = temp2 + ((u2.getRatings().get(sameRatings.get(i)) - u2Avg) * (u2.getRatings().get(sameRatings.get(i)) - u2Avg));
+            temp5 = temp5 + ((u2.getRatings().get(sameRatings.get(i)) - u2Avg) * (u2.getRatings().get(sameRatings.get(i)) - u2Avg));
         }
 
-        temp2 = (float) Math.sqrt(temp2);
+        temp5 = (float) Math.sqrt(temp5);
 
-        return temp1 * temp2;
-    }
+        return temp4 * temp5;
+    }*/
 
     public float averageRatings(User u1) {
         float u1Avg = 0;
@@ -145,7 +154,7 @@ public class SQLiteJDBCDriverConnection {
         ArrayList<Integer> sameRatings = getSame(u1, u2);
 
         if (sameRatings.size() != 0) {
-            float similarityValue = (sumMeanDifference(u1, u2, u1Avg, u2Avg, sameRatings) / (squareRoot(u1, u2, u1Avg, u2Avg, sameRatings)));
+            float similarityValue = numeratorAndDenominator(u1, u2, u1Avg, u2Avg, sameRatings);
 
             return similarityValue;
         } else {
