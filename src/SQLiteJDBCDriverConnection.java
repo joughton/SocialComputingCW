@@ -7,6 +7,7 @@ import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.logging.Level;
@@ -36,6 +37,23 @@ public class SQLiteJDBCDriverConnection {
         }
 
         return conn;
+    }
+
+    public void Pearson(Connection conn) {
+        this.selectDistinct(conn);
+        this.createSimilarityMatrix(conn);
+        this.makePredictions(conn);
+    }
+
+    public void slope(Connection conn) {
+        this.selectDistinct(conn);
+        for (Entry<Integer, User> entry : users.entrySet()) {
+            for (Entry<Integer, User> entryJ : users.entrySet()) {
+                if (entry.getValue().getUserID() != entryJ.getValue().getUserID()) {
+                    slopeOne(entry.getValue(), entryJ.getValue(), conn);
+                }
+            }
+        }
     }
 
     public void query(Integer user, Connection conn) {
@@ -72,7 +90,6 @@ public class SQLiteJDBCDriverConnection {
         } catch (SQLException e) {
             System.out.println(e.getMessage());
         }
-
     }
 
     public void queryAllUsers(Connection conn) {
@@ -108,9 +125,9 @@ public class SQLiteJDBCDriverConnection {
         float numerator = 0;
         float u1MeanDiffSq = 0;
         float u2MeanDiffSq = 0;
-         float u1MeanDiff = 0;
-         float u2MeanDiff = 0;
-         
+        float u1MeanDiff = 0;
+        float u2MeanDiff = 0;
+
         for (int i = 0; i < sameRatings.size(); i++) {
             u1MeanDiff = u1.getRatings().get(sameRatings.get(i)) - u1Avg;
             u2MeanDiff = u2.getRatings().get(sameRatings.get(i)) - u2Avg;
@@ -146,18 +163,6 @@ public class SQLiteJDBCDriverConnection {
         return temp4 * temp5;
     }
 
-    public float averageRatings(User u1) {
-        float u1Avg = 0;
-
-        for (Map.Entry<Integer, Integer> entry : u1.getRatings().entrySet()) {
-            u1Avg = u1Avg + entry.getValue();
-        }
-
-        u1Avg = u1Avg / u1.getRatings().size();
-
-        return u1Avg;
-    }
-
     public float similarityCoefficient(User u1, User u2) {
         float u1Avg = u1.getAverageRating();
         float u2Avg = u2.getAverageRating();
@@ -178,7 +183,7 @@ public class SQLiteJDBCDriverConnection {
 
         String indexRowValue = "CREATE INDEX rowIndex ON simMatrix (rowValue)";
         String indexSimilarity = "CREATE INDEX simIndex ON simMatrix (similarity)";
-        String myQuery = "SELECT colValue, similarity FROM simMatrix WHERE rowValue = " + user.getUserID() + " ORDER BY similarity LIMIT " + threshold;
+        String myQuery = "SELECT colValue, similarity FROM simMatrix WHERE rowValue = " + user.getUserID() + " ORDER BY simItems, similarity LIMIT " + threshold;
 
         HashMap<Integer, Float> neighbourhood = new HashMap<Integer, Float>();
 
@@ -221,7 +226,7 @@ public class SQLiteJDBCDriverConnection {
 
     public void createSimilarityMatrix(Connection conn) {
         String dropQuery = "DROP TABLE IF EXISTS simMatrix";
-        String myQuery = "CREATE TABLE IF NOT EXISTS simMatrix (rowValue integer, colValue integer, similarity float)";
+        String myQuery = "CREATE TABLE IF NOT EXISTS simMatrix (rowValue integer, colValue integer, similarity float, simItems integer)";
 
         int count = 0;
 
@@ -236,13 +241,14 @@ public class SQLiteJDBCDriverConnection {
         String begin = "BEGIN;";
         String commit = "COMMIT;";
 
-        String insertQuery = "INSERT INTO simMatrix VALUES (?,?,?)";
+        String insertQuery = "INSERT INTO simMatrix VALUES (?,?,?,?)";
         float simValue = 0;
+
         try {
             conn.setAutoCommit(false);
             insert = conn.prepareStatement(insertQuery);
 
-            for (Entry<Integer, User> entry : users.entrySet()) { 
+            for (Entry<Integer, User> entry : users.entrySet()) {
                 for (Entry<Integer, User> entryJ : users.entrySet()) {
                     if (entry.getValue().getUserID() == entryJ.getValue().getUserID()) {
                         simValue = 1;
@@ -250,9 +256,12 @@ public class SQLiteJDBCDriverConnection {
                         simValue = similarityCoefficient(entry.getValue(), entryJ.getValue());
                     }
 
+                    int similarItems = getSame(entry.getValue(), entryJ.getValue()).size();
+
                     insert.setInt(1, entry.getValue().getUserID());
                     insert.setInt(2, entryJ.getValue().getUserID());
                     insert.setFloat(3, simValue);
+                    insert.setInt(4, similarItems);
                     insert.addBatch();
 
                     if (count % 1000 == 0) {
@@ -279,20 +288,12 @@ public class SQLiteJDBCDriverConnection {
 
     public void makePredictions(Connection conn) {
         String myQuery = "SELECT user, item FROM predictions";
-        String indexUser = "CREATE INDEX userIndexPred ON predictions (user)";
-        String indexItem = "CREATE INDEX itemIndexPred ON predictions (item)";
-        String dropIndexUser = "DROP INDEX userIndexPred";
-        String dropIndexItem = "DROP INDEX itemIndexPred";
 
         System.out.println("Here1");
 
         try (Statement stmt = conn.createStatement()) {
             System.out.println("Here2");
-            //stmt.execute(indexUser);
-            //stmt.execute(indexItem);
             ResultSet rs = stmt.executeQuery(myQuery);
-            //stmt.execute(dropIndexUser);
-            //stmt.execute(dropIndexItem);
             while (rs.next()) {
                 //if (rs.getInt(1) % 13000 == 0) {
                 float prediction = prediction(conn, users.get(rs.getInt(1)), users.get(rs.getInt(2)), 60);
@@ -314,15 +315,49 @@ public class SQLiteJDBCDriverConnection {
         }
     }
 
-    public static void main(String[] args) {
-        SQLiteJDBCDriverConnection myJDBC = new SQLiteJDBCDriverConnection();
+    public void slopeOne(User u1, User u2, Connection conn) {
+        float u1Avg = u1.getAverageRating();
+        List<User> us = new ArrayList<User>();
 
-        try (Connection conn = SQLiteJDBCDriverConnection.connect();) {
-            myJDBC.selectDistinct(conn);
-            myJDBC.createSimilarityMatrix(conn);
-            myJDBC.makePredictions(conn);
+        String myQuery = "SELECT COUNT(*) FROM trainingset WHERE itemID=" + u2.getUserID();
+        //String myQuery1 = "SELECT rating FROM trainingset WHERE itemID="+u2.getUserID();
+        try (Statement stmt = conn.createStatement();) {
+            int devSum = 0;
+
+            ResultSet rs = stmt.executeQuery(myQuery);
+            int ratingsN = rs.getInt(1);
+            for (Entry<Integer, User> entry : users.entrySet()) {
+                if (entry.getValue().getRatings().containsKey(u1.getUserID()) && entry.getValue().getRatings().containsKey(u2.getUserID())) {
+                    devSum+= (entry.getValue().getRatings().get(u1.getUserID())-entry.getValue().getRatings().get(u2.getUserID()))/(double)ratingsN;
+                    /*List<Integer> similarItems = getSame(u1,entry.getValue());
+                    
+                    int sum = 0;
+                    for(int i = 0; i<similarItems.size();i++){
+                        sum+=entry.getValue().getRatings().get(u2.getUserID())-entry.getValue().getRatings().get(similarItems.get(i));
+                    }*/
+                } 
+            }
+
+            System.out.println(devSum);
+            float prediction = 0;
+
+            
+            prediction = (u1Avg +  (1 / ratingsN) * devSum);
+            /*if (prediction < 0) {
+                prediction = 0;
+            } else if (prediction > 10) {
+                prediction = 10;
+            }*/
+
+            //System.out.println(prediction);
         } catch (SQLException e) {
             System.out.println(e.getMessage());
         }
+    }
+
+    public static void main(String[] args) {
+        SQLiteJDBCDriverConnection myJDBC = new SQLiteJDBCDriverConnection();
+        //myJDBC.Pearson(SQLiteJDBCDriverConnection.connect());
+        myJDBC.slope(SQLiteJDBCDriverConnection.connect());
     }
 }
