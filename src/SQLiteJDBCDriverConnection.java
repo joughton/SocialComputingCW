@@ -256,7 +256,10 @@ public class SQLiteJDBCDriverConnection {
             for (Entry<Integer, User> entry : users.entrySet()) {
                 for (Entry<Integer, User> entryJ : users.entrySet()) {
                     //if u1 less than u2 don't put
-                    if (entry.getValue().getUserID() == entryJ.getValue().getUserID()) {
+                	if (entry.getValue().getUserID() > entryJ.getValue().getUserID()) {
+                		//simValue = 1;
+                		continue;
+                	} else if (entry.getValue().getUserID() == entryJ.getValue().getUserID()) {
                         //simValue = 1;
                         continue;
                     } else {
@@ -285,6 +288,7 @@ public class SQLiteJDBCDriverConnection {
 
                     count++;
                 }
+                System.out.println(entry.getValue().getUserID());
                 conn.commit();
             }
         } catch (SQLException e) {
