@@ -18,6 +18,8 @@ public class SQLiteJDBCDriverConnection {
 
     ArrayList<Integer> distinctUsers = new ArrayList<Integer>();
     HashMap<Integer, User> users = new HashMap<Integer, User>();
+    HashMap<Integer, HashMap<Integer, Integer>> differences = new HashMap<Integer, HashMap<Integer, Integer>>();
+    
     User temp;
 
     public static Connection connect() {
@@ -48,33 +50,7 @@ public class SQLiteJDBCDriverConnection {
             for (Entry<Integer, User> entryJ : users.entrySet()) {		//for every user-item pair
                 if (entryI.getValue().getUserID() != entryJ.getValue().getUserID()) {
                     
-                    float u1Avg = entryI.getValue().getAverageRating();
-                    int sum = 0;
-
-                    //move this on top
-                    for (Entry<Integer, Integer> entryK : entryI.getValue().getRatings().entrySet()) {		//user's ratings
-                        int diff = 0;
-                        int count = 0;
-
-                       // for (Entry<Integer, User> entryL : users.entrySet()) {
-                            if (entryI.getValue().getUserID() != entryJ.getKey() && entryJ.getValue().getRatings().size() > 0) {
-
-                                if (entryJ.getValue().getRatings().containsKey(entryJ.getValue().getUserID())
-                                        && entryJ.getValue().getRatings().containsKey(entryK.getKey())) {
-
-                                    diff += entryJ.getValue().getRatings().get(entryJ.getValue().getUserID())
-                                            - entryJ.getValue().getRatings().get(entryK.getKey());
-
-                                    count++;
-                                }
-                            }
-                       // }
-                        
-                        if (count > 0) {
-                            sum += diff / count;
-                        }
-                    }
-                    System.out.println(u1Avg + (float) sum / entryI.getValue().getRatings().size());
+                	slopeOne(entryJ.getValue(), entryI.getValue());
                     
                 }
             }
@@ -371,13 +347,13 @@ public class SQLiteJDBCDriverConnection {
             int count = 0;
 
             for (Entry<Integer, User> entryL : users.entrySet()) {
-                if (u1.getUserID() != entryL.getKey() && entryL.getValue().getRatings().size() > 0) {
+                if (u1.getUserID() != u2.getUserID() && u2.getRatings().size() > 0) {
 
-                    if (entryL.getValue().getRatings().containsKey(u2.getUserID())
-                            && entryL.getValue().getRatings().containsKey(entryK.getKey())) {
+                    if (u2.getRatings().containsKey(u2.getUserID())
+                            && u2.getRatings().containsKey(entryK.getKey())) {
 
-                        diff += entryL.getValue().getRatings().get(u2.getUserID())
-                                - entryL.getValue().getRatings().get(entryK.getKey());
+                        diff += u2.getRatings().get(u2.getUserID())
+                                - u2.getRatings().get(entryK.getKey());
 
                         count++;
                     }
@@ -390,44 +366,72 @@ public class SQLiteJDBCDriverConnection {
         }
         System.out.println(u1Avg + (float) sum / u1.getRatings().size());
     }
+    
+    public void generateDifferences(Connection conn) {
+    	
+    	selectDistinct(conn);
+    	
+    	for (Entry<Integer, User> diffA : users.entrySet()) {
+    		
+    		if(!differences.containsKey(diffA.getKey())) {
+    		
+	    		HashMap<Integer, Integer> temp = new HashMap<Integer, Integer>();
+	    		
+	    		differences.put(diffA.getKey(), temp);
+    	
+    		}	
+	    	
+        	for (Entry<Integer, User> diffB : users.entrySet()) {
+        		
+        		if(!differences.containsKey(diffB.getKey())) {
+        			
+            		HashMap<Integer, Integer> temp2 = new HashMap<Integer, Integer>();
+            		
+            		differences.put(diffB.getKey(), temp2);
+        			
+        		}
 
-    /*
-	 * public void slopeOne(User u1, User u2, Connection conn) {
-	 * 
-	 * float u1Avg = u1.getAverageRating(); int sum = 0;
-	 * 
-	 * for (Entry<Integer, Integer> entryI : u1.getRatings().entrySet()) {
-	 * 
-	 * int diff = 0; int count = 0;
-	 * 
-	 * for (Entry<Integer, User> entryJ : users.entrySet()) {
-	 * 
-	 * if (u1.getUserID() != entryJ.getKey() &&
-	 * entryJ.getValue().getRatings().containsKey(u2.getUserID()) &&
-	 * entryJ.getValue().getRatings().containsKey(entryI.getKey())) {
-	 * 
-	 * diff += entryJ.getValue().getRatings().get(u2.getUserID()) -
-	 * entryJ.getValue().getRatings().get(entryI.getKey()); count++;
-	 * 
-	 * }
-	 * 
-	 * }
-	 * 
-	 * if (count > 0) {
-	 * 
-	 * sum += diff / count;
-	 * 
-	 * }
-	 * 
-	 * }
-	 * 
-	 * System.out.println(u1Avg + (sum / u1.getRatings().size()));
-	 * 
-	 * }
-     */
+        		if(differences.get(diffA.getValue().getUserID()).containsKey(diffB.getValue().getUserID())) {
+        				
+        			continue;
+        				
+        		}
+
+        		for (Entry<Integer, Integer> ratingsA : diffA.getValue().getRatings().entrySet()) {
+        			
+                    int diff = 0;
+                    int count = 0;
+        			
+        			if(diffB.getValue().getRatings().containsKey(ratingsA.getKey())) {
+        				
+        				diff += diffA.getValue().getRatings().get(ratingsA.getKey()) - diffB.getValue().getRatings().get(ratingsA.getKey());
+        				count++;
+        				
+        			}
+        		
+        			if(count == 0) {
+        				
+        				differences.get(diffA.getKey()).put(diffB.getKey(), 0);
+        				differences.get(diffB.getKey()).put(diffA.getKey(), 0);
+        				
+        			} else {
+        			
+        				differences.get(diffA.getKey()).put(diffB.getKey(), diff);
+        				differences.get(diffB.getKey()).put(diffA.getKey(), -diff);
+        				
+        			}
+        			
+        		}
+        	}
+        	
+        	System.out.println(diffA.getKey());
+    	}
+    }
+
     public static void main(String[] args) {
         SQLiteJDBCDriverConnection myJDBC = new SQLiteJDBCDriverConnection();
-        myJDBC.Pearson(SQLiteJDBCDriverConnection.connect());
-        myJDBC.slope(SQLiteJDBCDriverConnection.connect());
+        //myJDBC.Pearson(SQLiteJDBCDriverConnection.connect());
+        //myJDBC.slope(SQLiteJDBCDriverConnection.connect());
+        myJDBC.generateDifferences(SQLiteJDBCDriverConnection.connect());
     }
 }
