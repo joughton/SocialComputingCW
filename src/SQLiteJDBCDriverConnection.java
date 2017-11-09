@@ -7,11 +7,8 @@ import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 
 /**
  *
@@ -47,10 +44,38 @@ public class SQLiteJDBCDriverConnection {
 
     public void slope(Connection conn) {
         this.selectDistinct(conn);
-        for (Entry<Integer, User> entry : users.entrySet()) {
-            for (Entry<Integer, User> entryJ : users.entrySet()) {
-                if (entry.getValue().getUserID() != entryJ.getValue().getUserID()) {
-                    slopeOne(entry.getValue(), entryJ.getValue());
+        for (Entry<Integer, User> entryI : users.entrySet()) {
+            for (Entry<Integer, User> entryJ : users.entrySet()) {		//for every user-item pair
+                if (entryI.getValue().getUserID() != entryJ.getValue().getUserID()) {
+                    
+                    float u1Avg = entryI.getValue().getAverageRating();
+                    int sum = 0;
+
+                    //move this on top
+                    for (Entry<Integer, Integer> entryK : entryI.getValue().getRatings().entrySet()) {		//user's ratings
+                        int diff = 0;
+                        int count = 0;
+
+                       // for (Entry<Integer, User> entryL : users.entrySet()) {
+                            if (entryI.getValue().getUserID() != entryJ.getKey() && entryJ.getValue().getRatings().size() > 0) {
+
+                                if (entryJ.getValue().getRatings().containsKey(entryJ.getValue().getUserID())
+                                        && entryJ.getValue().getRatings().containsKey(entryK.getKey())) {
+
+                                    diff += entryJ.getValue().getRatings().get(entryJ.getValue().getUserID())
+                                            - entryJ.getValue().getRatings().get(entryK.getKey());
+
+                                    count++;
+                                }
+                            }
+                       // }
+                        
+                        if (count > 0) {
+                            sum += diff / count;
+                        }
+                    }
+                    System.out.println(u1Avg + (float) sum / entryI.getValue().getRatings().size());
+                    
                 }
             }
         }
@@ -119,7 +144,7 @@ public class SQLiteJDBCDriverConnection {
     }
 
     public float numeratorAndDenominator(User u1, User u2, float u1Avg, float u2Avg, ArrayList<Integer> sameRatings) {
-
+    	System.out.println("u1Avg: " + u1Avg + " u2Avg: " + u2Avg);
         float numerator = 0;
         float u1MeanDiffSq = 0;
         float u2MeanDiffSq = 0;
@@ -137,9 +162,10 @@ public class SQLiteJDBCDriverConnection {
 
         u1MeanDiffSq = (float) Math.sqrt(u1MeanDiffSq);
         u2MeanDiffSq = (float) Math.sqrt(u2MeanDiffSq);
-        float deonominator = u1MeanDiffSq * u2MeanDiffSq;
-
-        return numerator / deonominator;
+        System.out.println("u1MeanDiffSq: " + u1MeanDiffSq + " u2MeanDiffSq: " + u2MeanDiffSq);
+        float denominator = u1MeanDiffSq * u2MeanDiffSq;
+        System.out.println("Numerator: " + numerator + " Denominator: " + denominator);
+        return numerator / denominator;
     }
 
     public float squareRoot(User u1, User u2, float u1Avg, float u2Avg, ArrayList<Integer> sameRatings) {
@@ -210,10 +236,10 @@ public class SQLiteJDBCDriverConnection {
         float denominator = 0;
 
         for (Entry<Integer, Float> entry : neighbourhood.entrySet()) {
-            denominator = denominator + users.get(entry.getKey()).getRatings().get(item.getUserID());
+            denominator = denominator + entry.getValue();
         }
 
-        prediction = prediction + (numerator / denominator);
+        prediction = prediction + (float) (numerator / denominator);
 
         if (prediction < 1) {
             prediction = 1;
@@ -281,6 +307,7 @@ public class SQLiteJDBCDriverConnection {
                     //check if batch refreshes
                     if (count % 1000 == 0) {
                         insert.executeBatch();
+                        insert.clearBatch();
                         conn.commit();
                         //System.out.println("Count:" + count + "(" + entry.getValue().getUserID() + ", "
                           //      + entryJ.getValue().getUserID() + ", " + simValue + ","+similarItems+")");
@@ -339,18 +366,18 @@ public class SQLiteJDBCDriverConnection {
         int sum = 0;
 
         //move this on top
-        for (Entry<Integer, Integer> entryI : u1.getRatings().entrySet()) {
+        for (Entry<Integer, Integer> entryK : u1.getRatings().entrySet()) {
             int diff = 0;
             int count = 0;
 
-            for (Entry<Integer, User> entryJ : users.entrySet()) {
-                if (u1.getUserID() != entryJ.getKey() && entryJ.getValue().getRatings().size() > 0) {
+            for (Entry<Integer, User> entryL : users.entrySet()) {
+                if (u1.getUserID() != entryL.getKey() && entryL.getValue().getRatings().size() > 0) {
 
-                    if (entryJ.getValue().getRatings().containsKey(u2.getUserID())
-                            && entryJ.getValue().getRatings().containsKey(entryI.getKey())) {
+                    if (entryL.getValue().getRatings().containsKey(u2.getUserID())
+                            && entryL.getValue().getRatings().containsKey(entryK.getKey())) {
 
-                        diff += entryJ.getValue().getRatings().get(u2.getUserID())
-                                - entryJ.getValue().getRatings().get(entryI.getKey());
+                        diff += entryL.getValue().getRatings().get(u2.getUserID())
+                                - entryL.getValue().getRatings().get(entryK.getKey());
 
                         count++;
                     }
@@ -401,6 +428,6 @@ public class SQLiteJDBCDriverConnection {
     public static void main(String[] args) {
         SQLiteJDBCDriverConnection myJDBC = new SQLiteJDBCDriverConnection();
         myJDBC.Pearson(SQLiteJDBCDriverConnection.connect());
-        //myJDBC.slope(SQLiteJDBCDriverConnection.connect());
+        myJDBC.slope(SQLiteJDBCDriverConnection.connect());
     }
 }

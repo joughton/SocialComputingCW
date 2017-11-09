@@ -9,15 +9,18 @@ public class Test {
 		
 		User u2 = new User(2);
 		
-		u1.getRatings().put(1, 8);
-		u1.getRatings().put(4, 2);
-		u1.getRatings().put(5, 7);
+		u1.getRatings().put(1, 2);
+		u1.getRatings().put(4, 1);
+		u1.getRatings().put(5, 5);
 		
-		u2.getRatings().put(1, 5);
-		u2.getRatings().put(4, 4);
-		u2.getRatings().put(5, 7);
+		u2.getRatings().put(1, 1);
+		u2.getRatings().put(4, 5);
+		u2.getRatings().put(5, 8);
 		
-		System.out.println("Actual: " + 0.644902022);
+		u1.computeAverage();
+		u2.computeAverage();
+		
+		System.out.println("Actual: " + 0.661143091);
 		System.out.println("Calculated: " + jdbc.similarityCoefficient(u1, u2));
 		
 	}
