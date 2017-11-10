@@ -165,11 +165,9 @@ public class SQLiteJDBCDriverConnection {
         return temp4 * temp5;
     }
 
-    public float similarityCoefficient(User u1, User u2) {
+    public float similarityCoefficient(User u1, User u2, ArrayList<Integer> sameRatings) {
         float u1Avg = u1.getAverageRating();
         float u2Avg = u2.getAverageRating();
-
-        ArrayList<Integer> sameRatings = getSame(u1, u2);
 
         if (sameRatings.size() != 0) {
             float similarityValue = numeratorAndDenominator(u1, u2, u1Avg, u2Avg, sameRatings);
@@ -265,7 +263,9 @@ public class SQLiteJDBCDriverConnection {
                         //simValue = 1;
                         continue;
                     } else {
-                        simValue = similarityCoefficient(entry.getValue(), entryJ.getValue());
+                    	ArrayList<Integer> sameRatings = getSame(entry.getValue(), entryJ.getValue());
+                    	similarItems = sameRatings.size();
+                        simValue = similarityCoefficient(entry.getValue(), entryJ.getValue(), sameRatings);
                         if (simValue == 0) {
                             continue;
                         }
