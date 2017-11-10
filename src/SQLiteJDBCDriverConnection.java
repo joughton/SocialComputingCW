@@ -271,8 +271,6 @@ public class SQLiteJDBCDriverConnection {
                         }
                     }
 
-                    similarItems = getSame(entry.getValue(), entryJ.getValue()).size();
-
                     insert.setInt(1, entry.getValue().getUserID());
                     insert.setInt(2, entryJ.getValue().getUserID());
                     insert.setFloat(3, simValue);
