@@ -9,7 +9,6 @@ public class User {
     float average;
     
     public User(int userID) {
-        super();
         this.userID = userID;
     }
 

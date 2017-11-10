@@ -3,7 +3,7 @@ public class Test {
 	
 	public static void main(String[] args) {
 		
-		SQLiteJDBCDriverConnection jdbc = new SQLiteJDBCDriverConnection();
+		RecommenderSystems jdbc = new RecommenderSystems();
 		
 		User u1 = new User(1);
 		
