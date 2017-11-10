@@ -65,8 +65,8 @@ public class RecommenderSystems {
         String selectUsers = "SELECT DISTINCT userID FROM trainingset";
         String selectUser = null;
         ResultSet userRatings = null;
-        
-        try (Statement stmt = conn.createStatement(); ResultSet rs = stmt.executeQuery(selectUsers); ) {
+
+        try (Statement stmt = conn.createStatement(); ResultSet rs = stmt.executeQuery(selectUsers);) {
             //populate the userIDs
             while (rs.next()) {
                 distinctUsers.add(rs.getInt(1));
@@ -75,7 +75,7 @@ public class RecommenderSystems {
             //populate the hashmaps of the users and the hashmap of users
             for (int i = 0; i < distinctUsers.size(); i++) {
                 selectUser = "SELECT itemID, rating FROM trainingset WHERE userID = " + distinctUsers.get(i);
-                
+
                 userRatings = stmt.executeQuery(selectUser);
                 user = new User(distinctUsers.get(i));
 
@@ -99,50 +99,58 @@ public class RecommenderSystems {
       ARGS: Connection
      */
     public void createSimilarityMatrix(Connection conn) {
-        String dropTable = "DROP TABLE IF EXISTS simMatrix";
         String createTable = "CREATE TABLE IF NOT EXISTS simMatrix (rowValue integer, colValue integer, similarity float, simItems integer)";
+        String getLastID = "SELECT rowValue FROM simMatrix ORDER BY rowValue DESC LIMIT 1";
+        String removeLast = "DELETE FROM simMatrix WHERE rowValue IN (SELECT rowValue FROM simMatrix ORDER BY rowValue DESC LIMIT 1)";
 
         int commitCounter = 0;
         float simValue = 0;
         int similarItems = 0;
         PreparedStatement insert = null;
+        List<Integer> sameRatings = null;
+        int lastID = 0;
 
         String insertQuery = "INSERT INTO simMatrix VALUES (?,?,?,?)";
 
         try (Statement stmt = conn.createStatement()) {
-            stmt.execute(dropTable);
             stmt.execute(createTable);
+
+            lastID = stmt.executeQuery(getLastID).getInt(1);
+            stmt.execute(removeLast);
 
             conn.setAutoCommit(false);
             insert = conn.prepareStatement(insertQuery);
-
+            System.out.println("here");
             for (Entry<Integer, User> entry : users.entrySet()) {
-                for (Entry<Integer, User> entryJ : users.entrySet()) {
-                    if (entry.getValue().getUserID() <= entryJ.getValue().getUserID()) {
-                        continue;
-                    } else {
-                        ArrayList<Integer> sameRatings = getSameItems(entry.getValue(), entryJ.getValue());
-                        similarItems = sameRatings.size();
-                        
-                        if (similarityCoefficient(entry.getValue(), entryJ.getValue(), sameRatings) == 0) {
+                if (entry.getValue().getUserID() >= lastID) {
+                    for (Entry<Integer, User> entryJ : users.entrySet()) {
+                        if (entry.getValue().getUserID() >= entryJ.getValue().getUserID()) {
                             continue;
+                        } else {
+                            sameRatings = getSameItems(entry.getValue(), entryJ.getValue());
+                            similarItems = sameRatings.size();
+                            simValue = similarityCoefficient(entry.getValue(), entryJ.getValue(), sameRatings);
+                            if (simValue == 0) {
+                                continue;
+                            }
+                        }
+
+                        commitCounter++;
+
+                        insert.setInt(1, entry.getValue().getUserID());
+                        insert.setInt(2, entryJ.getValue().getUserID());
+                        insert.setFloat(3, simValue);
+                        insert.setInt(4, similarItems);
+                        insert.executeUpdate();
+
+                        if (commitCounter % 1000 == 0) {
+                            conn.commit();
                         }
                     }
-                    commitCounter++;
 
-                    insert.setInt(1, entry.getValue().getUserID());
-                    insert.setInt(2, entryJ.getValue().getUserID());
-                    insert.setFloat(3, simValue);
-                    insert.setInt(4, similarItems);
-                    insert.executeUpdate();
-
-                    if (commitCounter % 1000 == 0) {
-                        conn.commit();
+                    if (entry.getValue().getUserID() % 250 == 0) {
+                        System.out.println(entry.getValue().getUserID());
                     }
-                }
-                
-                if (entry.getValue().getUserID() % 1000 == 0) {
-                    System.out.println(entry.getValue().getUserID());
                 }
             }
             conn.commit();
@@ -150,20 +158,20 @@ public class RecommenderSystems {
             e.printStackTrace();
         } finally {
             try {
-                insert.close();
+                //insert.close();
                 conn.setAutoCommit(true);
             } catch (SQLException ex) {
                 ex.printStackTrace();
             }
         }
     }
-    
+
     /*
       Function which gets items that both users have rated
       ARGS: Two users
      */
-    public ArrayList<Integer> getSameItems(User u1, User u2) {
-        ArrayList<Integer> sameItems = new ArrayList<Integer>();
+    public List<Integer> getSameItems(User u1, User u2) {
+        List<Integer> sameItems = new ArrayList<Integer>();
 
         if (u1.getRatings().size() < u2.getRatings().size()) {
             for (Map.Entry<Integer, Integer> entry : u1.getRatings().entrySet()) {
@@ -184,12 +192,12 @@ public class RecommenderSystems {
 
     /*
       Function which computes the similarity coefficient
-      ARGS: Two users ArrayList of similar items
+      ARGS: Two users and List of similar items
      */
-    public float similarityCoefficient(User u1, User u2, ArrayList<Integer> sameRatings) {
+    public float similarityCoefficient(User u1, User u2, List<Integer> sameRatings) {
         float u1Avg = u1.getAverageRating();
         float u2Avg = u2.getAverageRating();
-        
+
         float numerator = 0;
         float u1MeanDiffSq = 0;
         float u2MeanDiffSq = 0;
@@ -252,11 +260,11 @@ public class RecommenderSystems {
         String indexRowValue = "CREATE INDEX rowIndex ON simMatrix (rowValue)";
         String indexSimilarity = "CREATE INDEX simIndex ON simMatrix (similarity)";
         //String myQuery = "SELECT colValue, similarity FROM simMatrix WHERE rowValue = " + user.getUserID()
-          //      + " ORDER BY simItems, similarity LIMIT " + threshold;
+        //      + " ORDER BY simItems, similarity LIMIT " + threshold;
 
         String myQuery = "SELECT colValue, similarity FROM simMatrix WHERE rowValue = " + user.getUserID()
                 + " AND simItems>=5 LIMIT " + threshold;
-          
+
         HashMap<Integer, Float> neighbourhood = new HashMap<Integer, Float>();
 
         try (Statement stmt = conn.createStatement()) {
@@ -296,7 +304,7 @@ public class RecommenderSystems {
 
         return prediction;
     }
-    
+
     //TO-DO: SLOPE ONE COMMENTS
     public void slopeOne(User u1, User u2) {
 
