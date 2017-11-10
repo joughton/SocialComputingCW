@@ -19,8 +19,8 @@ public class SQLiteJDBCDriverConnection {
     ArrayList<Integer> distinctUsers = new ArrayList<Integer>();
     HashMap<Integer, User> users = new HashMap<Integer, User>();
     HashMap<Integer, HashMap<Integer, Integer>> differences = new HashMap<Integer, HashMap<Integer, Integer>>();
-    
-    User temp;
+
+    User user;
 
     public static Connection connect() {
         Connection conn = null;
@@ -39,66 +39,53 @@ public class SQLiteJDBCDriverConnection {
     }
 
     public void Pearson(Connection conn) {
-        this.selectDistinct(conn);
+        this.selectDistinctUsers(conn);
         this.createSimilarityMatrix(conn);
         this.makePredictions(conn);
     }
 
     public void slope(Connection conn) {
-        this.selectDistinct(conn);
+        this.selectDistinctUsers(conn);
         for (Entry<Integer, User> entryI : users.entrySet()) {
             for (Entry<Integer, User> entryJ : users.entrySet()) {		//for every user-item pair
                 if (entryI.getValue().getUserID() != entryJ.getValue().getUserID()) {
-                    
-                	slopeOne(entryJ.getValue(), entryI.getValue());
-                    
+
+                    slopeOne(entryJ.getValue(), entryI.getValue());
+
                 }
             }
         }
     }
 
-    public void query(Integer user, Connection conn) {
-        String myQuery = "SELECT itemID, rating FROM trainingset WHERE userID = " + user;
-
-        try (Statement stmt = conn.createStatement(); ResultSet rs = stmt.executeQuery(myQuery)) {
-
-            temp = new User(user);
-
-            while (rs.next()) {
-                temp.getRatings().put(rs.getInt(1), rs.getInt(2));
-            }
-
-            temp.computeAverage();
-            users.put(user, temp);
-        } catch (SQLException e) {
-            System.out.println(e.getMessage());
-        }
-
-    }
-
-    public void selectDistinct(Connection conn) {
+    public void selectDistinctUsers(Connection conn) {
         String myQuery = "SELECT DISTINCT userID FROM trainingset";
-
+        String selectUser = null;
         try (Statement stmt = conn.createStatement(); ResultSet rs = stmt.executeQuery(myQuery)) {
 
             while (rs.next()) {
                 distinctUsers.add(rs.getInt(1));
             }
 
-            queryAllUsers(conn);
+            for (int i = 0; i < distinctUsers.size(); i++) {
+                System.out.println(distinctUsers.get(i));
+                selectUser = "SELECT itemID, rating FROM trainingset WHERE userID = " + distinctUsers.get(i);
+
+                user = new User(distinctUsers.get(i));
+
+                while (rs.next()) {
+                    user.getRatings().put(rs.getInt(1), rs.getInt(2));
+                }
+
+                user.computeAverage();
+                users.put(distinctUsers.get(i), user);
+            }
+
+            System.out.println(distinctUsers.size());
         } catch (SQLException e) {
             System.out.println(e.getMessage());
         }
     }
-
-    public void queryAllUsers(Connection conn) {
-        for (int i = 0; i < distinctUsers.size(); i++) {
-            query(distinctUsers.get(i), conn);
-        }
-
-        System.out.println(distinctUsers.size());
-    }
-
+    
     public ArrayList<Integer> getSame(User u1, User u2) {
         ArrayList<Integer> sameRatings = new ArrayList<Integer>();
 
@@ -120,7 +107,6 @@ public class SQLiteJDBCDriverConnection {
     }
 
     public float numeratorAndDenominator(User u1, User u2, float u1Avg, float u2Avg, ArrayList<Integer> sameRatings) {
-    	System.out.println("u1Avg: " + u1Avg + " u2Avg: " + u2Avg);
         float numerator = 0;
         float u1MeanDiffSq = 0;
         float u2MeanDiffSq = 0;
@@ -138,31 +124,8 @@ public class SQLiteJDBCDriverConnection {
 
         u1MeanDiffSq = (float) Math.sqrt(u1MeanDiffSq);
         u2MeanDiffSq = (float) Math.sqrt(u2MeanDiffSq);
-        System.out.println("u1MeanDiffSq: " + u1MeanDiffSq + " u2MeanDiffSq: " + u2MeanDiffSq);
         float denominator = u1MeanDiffSq * u2MeanDiffSq;
-        System.out.println("Numerator: " + numerator + " Denominator: " + denominator);
         return numerator / denominator;
-    }
-
-    public float squareRoot(User u1, User u2, float u1Avg, float u2Avg, ArrayList<Integer> sameRatings) {
-        float temp4 = 0;
-        float temp5 = 0;
-
-        for (int i = 0; i < sameRatings.size(); i++) {
-            temp4 = temp4 + ((u1.getRatings().get(sameRatings.get(i)) - u1Avg)
-                    * (u1.getRatings().get(sameRatings.get(i)) - u1Avg));
-        }
-
-        temp4 = (float) Math.sqrt(temp4);
-
-        for (int i = 0; i < sameRatings.size(); i++) {
-            temp5 = temp5 + ((u2.getRatings().get(sameRatings.get(i)) - u2Avg)
-                    * (u2.getRatings().get(sameRatings.get(i)) - u2Avg));
-        }
-
-        temp5 = (float) Math.sqrt(temp5);
-
-        return temp4 * temp5;
     }
 
     public float similarityCoefficient(User u1, User u2, ArrayList<Integer> sameRatings) {
@@ -232,41 +195,28 @@ public class SQLiteJDBCDriverConnection {
         String myQuery = "CREATE TABLE IF NOT EXISTS simMatrix (rowValue integer, colValue integer, similarity float, simItems integer)";
 
         int count = 0;
-
-        try (Statement stmt = conn.createStatement()) {
-            stmt.execute(dropQuery);
-            stmt.execute(myQuery);
-        } catch (SQLException e) {
-            System.out.println(e.getMessage());
-        }
-
         PreparedStatement insert = null;
-        String begin = "BEGIN;";
-        String commit = "COMMIT;";
 
         String insertQuery = "INSERT INTO simMatrix VALUES (?,?,?,?)";
         float simValue = 0;
         int similarItems = 0;
-        
-        try {
+
+        try (Statement stmt = conn.createStatement()) {
+            stmt.execute(dropQuery);
+            stmt.execute(myQuery);
+
             conn.setAutoCommit(false);
             insert = conn.prepareStatement(insertQuery);
 
             //print only the user
             for (Entry<Integer, User> entry : users.entrySet()) {
                 for (Entry<Integer, User> entryJ : users.entrySet()) {
-                    //if u1 less than u2 don't put
-                	if (entry.getValue().getUserID() > entryJ.getValue().getUserID()) {
-                		//simValue = 1;
-                		continue;
-                	} else if (entry.getValue().getUserID() == entryJ.getValue().getUserID()) {
-                        //simValue = 1;
+                    if (entry.getValue().getUserID() <= entryJ.getValue().getUserID()) {
                         continue;
                     } else {
-                    	ArrayList<Integer> sameRatings = getSame(entry.getValue(), entryJ.getValue());
-                    	similarItems = sameRatings.size();
-                        simValue = similarityCoefficient(entry.getValue(), entryJ.getValue(), sameRatings);
-                        if (simValue == 0) {
+                        ArrayList<Integer> sameRatings = getSame(entry.getValue(), entryJ.getValue());
+                        similarItems = sameRatings.size();
+                        if (similarityCoefficient(entry.getValue(), entryJ.getValue(), sameRatings) == 0) {
                             continue;
                         }
                     }
@@ -275,33 +225,34 @@ public class SQLiteJDBCDriverConnection {
                     insert.setInt(2, entryJ.getValue().getUserID());
                     insert.setFloat(3, simValue);
                     insert.setInt(4, similarItems);
-                    //step?
-                    insert.addBatch();
+                    //insert.addBatch();
 
                     //check if batch refreshes
                     if (count % 1000 == 0) {
-                        insert.executeBatch();
-                        insert.clearBatch();
+                        //insert.executeBatch();
+                        //insert.clearBatch();
                         conn.commit();
                         //System.out.println("Count:" + count + "(" + entry.getValue().getUserID() + ", "
-                          //      + entryJ.getValue().getUserID() + ", " + simValue + ","+similarItems+")");
+                        // + entryJ.getValue().getUserID() + ", " + simValue + ","+similarItems+")");
                     }
 
                     count++;
                 }
-                System.out.println(entry.getValue().getUserID());
-                conn.commit();
+                if (entry.getValue().getUserID() % 1000 == 0) {
+                    System.out.println(entry.getValue().getUserID());
+                }
             }
+            conn.commit();
         } catch (SQLException e) {
-            System.out.println(e.getMessage());
-        } /*finally {
+            e.printStackTrace();
+        } finally {
             try {
                 insert.close();
                 conn.setAutoCommit(true);
             } catch (SQLException ex) {
-                Logger.getLogger(SQLiteJDBCDriverConnection.class.getName()).log(Level.SEVERE, null, ex);
+                ex.printStackTrace();
             }
-        }*/
+        }
     }
 
     public void makePredictions(Connection conn) {
@@ -328,12 +279,6 @@ public class SQLiteJDBCDriverConnection {
 
     }
 
-    public void printNumberOfRatings() {
-        for (Entry<Integer, User> entry : users.entrySet()) {
-            System.out.println(entry.getValue().getRatings().size());
-        }
-    }
-
     public void slopeOne(User u1, User u2) {
 
         float u1Avg = u1.getAverageRating();
@@ -357,79 +302,60 @@ public class SQLiteJDBCDriverConnection {
                     }
                 }
             }
-            
+
             if (count > 0) {
                 sum += diff / count;
             }
         }
         System.out.println(u1Avg + (float) sum / u1.getRatings().size());
     }
-    
+
     public void generateDifferences(Connection conn) {
-    	
-    	selectDistinct(conn);
-    	
-    	for (Entry<Integer, User> diffA : users.entrySet()) {
-    		
-    		if(!differences.containsKey(diffA.getKey())) {
-    		
-	    		HashMap<Integer, Integer> temp = new HashMap<Integer, Integer>();
-	    		
-	    		differences.put(diffA.getKey(), temp);
-    	
-    		}	
-	    	
-        	for (Entry<Integer, User> diffB : users.entrySet()) {
-        		
-        		if(!differences.containsKey(diffB.getKey())) {
-        			
-            		HashMap<Integer, Integer> temp2 = new HashMap<Integer, Integer>();
-            		
-            		differences.put(diffB.getKey(), temp2);
-        			
-        		}
+        selectDistinctUsers(conn);
 
-        		if(differences.get(diffA.getValue().getUserID()).containsKey(diffB.getValue().getUserID())) {
-        				
-        			continue;
-        				
-        		}
+        for (Entry<Integer, User> diffA : users.entrySet()) {
+            if (!differences.containsKey(diffA.getKey())) {
+                HashMap<Integer, Integer> temp = new HashMap<Integer, Integer>();
+                differences.put(diffA.getKey(), temp);
+            }
 
-        		for (Entry<Integer, Integer> ratingsA : diffA.getValue().getRatings().entrySet()) {
-        			
+            for (Entry<Integer, User> diffB : users.entrySet()) {
+                if (!differences.containsKey(diffB.getKey())) {
+                    HashMap<Integer, Integer> temp2 = new HashMap<Integer, Integer>();
+                    differences.put(diffB.getKey(), temp2);
+                }
+
+                if (differences.get(diffA.getValue().getUserID()).containsKey(diffB.getValue().getUserID())) {
+                    continue;
+                }
+
+                for (Entry<Integer, Integer> ratingsA : diffA.getValue().getRatings().entrySet()) {
                     int diff = 0;
                     int count = 0;
-        			
-        			if(diffB.getValue().getRatings().containsKey(ratingsA.getKey())) {
-        				
-        				diff += diffA.getValue().getRatings().get(ratingsA.getKey()) - diffB.getValue().getRatings().get(ratingsA.getKey());
-        				count++;
-        				
-        			}
-        		
-        			if(count == 0) {
-        				
-        				differences.get(diffA.getKey()).put(diffB.getKey(), 0);
-        				differences.get(diffB.getKey()).put(diffA.getKey(), 0);
-        				
-        			} else {
-        			
-        				differences.get(diffA.getKey()).put(diffB.getKey(), diff);
-        				differences.get(diffB.getKey()).put(diffA.getKey(), -diff);
-        				
-        			}
-        			
-        		}
-        	}
-        	
-        	System.out.println(diffA.getKey());
-    	}
+
+                    if (diffB.getValue().getRatings().containsKey(ratingsA.getKey())) {
+                        diff += diffA.getValue().getRatings().get(ratingsA.getKey()) - diffB.getValue().getRatings().get(ratingsA.getKey());
+                        count++;
+                    }
+
+                    if (count == 0) {
+                        differences.get(diffA.getKey()).put(diffB.getKey(), 0);
+                        differences.get(diffB.getKey()).put(diffA.getKey(), 0);
+                    } else {
+                        differences.get(diffA.getKey()).put(diffB.getKey(), diff);
+                        differences.get(diffB.getKey()).put(diffA.getKey(), -diff);
+                    }
+                }
+            }
+
+            System.out.println(diffA.getKey());
+        }
     }
 
     public static void main(String[] args) {
         SQLiteJDBCDriverConnection myJDBC = new SQLiteJDBCDriverConnection();
-        //myJDBC.Pearson(SQLiteJDBCDriverConnection.connect());
+        myJDBC.Pearson(SQLiteJDBCDriverConnection.connect());
         //myJDBC.slope(SQLiteJDBCDriverConnection.connect());
-        myJDBC.generateDifferences(SQLiteJDBCDriverConnection.connect());
+        //myJDBC.generateDifferences(SQLiteJDBCDriverConnection.connect());
     }
 }

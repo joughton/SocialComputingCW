@@ -21,7 +21,7 @@ public class Test {
 		u2.computeAverage();
 		
 		System.out.println("Actual: " + 0.661143091);
-		System.out.println("Calculated: " + jdbc.similarityCoefficient(u1, u2));
+		//System.out.println("Calculated: " + jdbc.similarityCoefficient(u1, u2));
 		
 	}
 
