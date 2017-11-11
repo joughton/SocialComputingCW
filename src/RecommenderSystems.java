@@ -41,7 +41,7 @@ public class RecommenderSystems {
     public void userBased(Connection conn) {
         this.selectDistinctUsers(conn);
         this.createSimilarityMatrix(conn);
-        this.makePredictions(conn);
+        //this.makePredictions(conn);
     }
 
     //function which executes the flow for the slopeOne recommender system
@@ -115,12 +115,16 @@ public class RecommenderSystems {
         try (Statement stmt = conn.createStatement()) {
             stmt.execute(createTable);
 
-            lastID = stmt.executeQuery(getLastID).getInt(1);
-            stmt.execute(removeLast);
+            try {
+                ResultSet r = stmt.executeQuery(getLastID);
+                lastID = r.getInt(1);
+                stmt.execute(removeLast);
+            } catch (SQLException e) {
+                System.out.println("No entries");
+            }
 
             conn.setAutoCommit(false);
             insert = conn.prepareStatement(insertQuery);
-            System.out.println("here");
             for (Entry<Integer, User> entry : users.entrySet()) {
                 if (entry.getValue().getUserID() >= lastID) {
                     for (Entry<Integer, User> entryJ : users.entrySet()) {
@@ -129,7 +133,12 @@ public class RecommenderSystems {
                         } else {
                             sameRatings = getSameItems(entry.getValue(), entryJ.getValue());
                             similarItems = sameRatings.size();
-                            simValue = similarityCoefficient(entry.getValue(), entryJ.getValue(), sameRatings);
+                            if (similarItems == 1 || similarItems == 2) {
+                                continue;
+                            } else {
+                                simValue = similarityCoefficient(entry.getValue(), entryJ.getValue(), sameRatings);
+                            }
+                            
                             if (simValue == 0) {
                                 continue;
                             }
@@ -148,7 +157,7 @@ public class RecommenderSystems {
                         }
                     }
 
-                    if (entry.getValue().getUserID() % 250 == 0) {
+                    if (entry.getValue().getUserID() % 1 == 0) {
                         System.out.println(entry.getValue().getUserID());
                     }
                 }
@@ -259,12 +268,11 @@ public class RecommenderSystems {
 
         String indexRowValue = "CREATE INDEX rowIndex ON simMatrix (rowValue)";
         String indexSimilarity = "CREATE INDEX simIndex ON simMatrix (similarity)";
-        //String myQuery = "SELECT colValue, similarity FROM simMatrix WHERE rowValue = " + user.getUserID()
-        //      + " ORDER BY simItems, similarity LIMIT " + threshold;
-
         String myQuery = "SELECT colValue, similarity FROM simMatrix WHERE rowValue = " + user.getUserID()
-                + " AND simItems>=5 LIMIT " + threshold;
+                + " ORDER BY simItems DESC LIMIT " + threshold;
 
+        //String myQuery = "SELECT colValue, similarity FROM simMatrix WHERE rowValue = " + user.getUserID()
+        // + " AND simItems>=5 LIMIT " + threshold;
         HashMap<Integer, Float> neighbourhood = new HashMap<Integer, Float>();
 
         try (Statement stmt = conn.createStatement()) {
