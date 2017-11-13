@@ -143,7 +143,7 @@ public class RecommenderSystems {
                         } else {
                             sameRatings = getSameItems(entry.getValue(), entryJ.getValue());
                             similarItems = sameRatings.size();
-                            if (similarItems == 1 || similarItems == 2) {
+                            if (similarItems == 1) {
                                 continue;
                             } else {
                                 simValue = similarityCoefficient(entry.getValue(), entryJ.getValue(), sameRatings);
