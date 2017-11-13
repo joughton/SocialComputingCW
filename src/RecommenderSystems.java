@@ -17,7 +17,7 @@ public class RecommenderSystems {
     List<Integer> distinctUsers = new ArrayList<Integer>();
     Map<Integer, User> users = new HashMap<Integer, User>();
     Map<Integer, HashMap<Integer, Integer>> differences = new HashMap<Integer, HashMap<Integer, Integer>>();
-
+    Set<User> toTestUsers = new HashSet<User>();
     User user;
 
     //Creates connection to the database
@@ -64,7 +64,9 @@ public class RecommenderSystems {
     public void selectDistinctUsers(Connection conn) {
         String selectUsers = "SELECT DISTINCT userID FROM trainingset";
         String selectUser = null;
+        String selectTestUsers = null;
         ResultSet userRatings = null;
+        ResultSet testUsers = null;
 
         try (Statement stmt = conn.createStatement(); ResultSet rs = stmt.executeQuery(selectUsers);) {
             //populate the userIDs
@@ -79,7 +81,7 @@ public class RecommenderSystems {
                 userRatings = stmt.executeQuery(selectUser);
                 user = new User(distinctUsers.get(i));
 
-                while (rs.next()) {
+                while (userRatings.next()) {
                     user.getRatings().put(userRatings.getInt(1), userRatings.getInt(2));
                 }
 
@@ -87,7 +89,16 @@ public class RecommenderSystems {
                 users.put(distinctUsers.get(i), user);
             }
 
-            System.out.println(distinctUsers.size());
+            System.out.println(users.size());
+            
+            selectTestUsers = "SELECT DISTINCT user FROM predictions";
+            testUsers = stmt.executeQuery(selectTestUsers);
+            
+            while(testUsers.next()){
+                toTestUsers.add(users.get(testUsers.getInt(1)));
+            }
+            
+            System.out.println(toTestUsers.size());
         } catch (SQLException e) {
             System.out.println(e.getMessage());
         }
@@ -114,7 +125,6 @@ public class RecommenderSystems {
 
         try (Statement stmt = conn.createStatement()) {
             stmt.execute(createTable);
-
             try {
                 ResultSet r = stmt.executeQuery(getLastID);
                 lastID = r.getInt(1);
@@ -126,7 +136,7 @@ public class RecommenderSystems {
             conn.setAutoCommit(false);
             insert = conn.prepareStatement(insertQuery);
             for (Entry<Integer, User> entry : users.entrySet()) {
-                if (entry.getValue().getUserID() >= lastID) {
+                if (entry.getValue().getUserID() >= lastID && toTestUsers.contains(entry.getValue())) {
                     for (Entry<Integer, User> entryJ : users.entrySet()) {
                         if (entry.getValue().getUserID() >= entryJ.getValue().getUserID()) {
                             continue;
@@ -157,9 +167,7 @@ public class RecommenderSystems {
                         }
                     }
 
-                    if (entry.getValue().getUserID() % 1 == 0) {
-                        System.out.println(entry.getValue().getUserID());
-                    }
+                    System.out.println(entry.getValue().getUserID());
                 }
             }
             conn.commit();
