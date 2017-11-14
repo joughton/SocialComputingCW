@@ -90,14 +90,14 @@ public class RecommenderSystems {
             }
 
             System.out.println(users.size());
-            
+
             selectTestUsers = "SELECT DISTINCT user FROM predictions";
             testUsers = stmt.executeQuery(selectTestUsers);
-            
-            while(testUsers.next()){
+
+            while (testUsers.next()) {
                 toTestUsers.add(users.get(testUsers.getInt(1)));
             }
-            
+
             System.out.println(toTestUsers.size());
         } catch (SQLException e) {
             System.out.println(e.getMessage());
@@ -148,7 +148,7 @@ public class RecommenderSystems {
                             } else {
                                 simValue = similarityCoefficient(entry.getValue(), entryJ.getValue(), sameRatings);
                             }
-                            
+
                             if (simValue == 0) {
                                 continue;
                             }
@@ -274,8 +274,9 @@ public class RecommenderSystems {
     public float prediction(Connection conn, User user, User item, int threshold) { // 20-60
         float prediction = user.getAverageRating();
 
-        String indexRowValue = "CREATE INDEX rowIndex ON simMatrix (rowValue)";
-        String indexSimilarity = "CREATE INDEX simIndex ON simMatrix (similarity)";
+        //create the indexes externally
+        //String indexRowValue = "CREATE INDEX rowIndex ON simMatrix (rowValue)";
+        //String indexSimilarity = "CREATE INDEX simIndex ON simMatrix (similarity)";
         String myQuery = "SELECT colValue, similarity FROM simMatrix WHERE rowValue = " + user.getUserID()
                 + " ORDER BY simItems DESC LIMIT " + threshold;
 
@@ -284,12 +285,15 @@ public class RecommenderSystems {
         HashMap<Integer, Float> neighbourhood = new HashMap<Integer, Float>();
 
         try (Statement stmt = conn.createStatement()) {
-            stmt.execute(indexRowValue);
-            stmt.execute(indexSimilarity);
+            //stmt.execute(indexRowValue);
+            //stmt.execute(indexSimilarity);
             ResultSet rs = stmt.executeQuery(myQuery);
 
             while (rs.next()) {
-                neighbourhood.put(rs.getInt(1), rs.getFloat(2));
+                //checking if he has rated the product
+                if (users.get(rs.getInt(1)).getRatings().containsKey(item.getUserID())) {
+                    neighbourhood.put(rs.getInt(1), rs.getFloat(2));
+                }
             }
         } catch (SQLException e) {
             System.out.println(e.getMessage());
@@ -310,11 +314,12 @@ public class RecommenderSystems {
 
         prediction = prediction + (float) (numerator / denominator);
 
-        if (prediction < 1) {
+        //if <1 or >10 there is clearly something wrong => I suggest putting the average, also if the neighbourhood is <20 users use the average as well
+        /*if (prediction < 1) {
             prediction = 1;
         } else if (prediction > 10) {
             prediction = 10;
-        }
+        }*/
 
         System.out.println(prediction);
 
