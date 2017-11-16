@@ -249,17 +249,21 @@ public class RecommenderSystems {
      */
     public void makePredictions(Connection conn) {
         String myQuery = "SELECT user, item FROM predictions";
-        String insertQuery = null;
-        
+        String insertQuery = "UPDATE predictions SET prediction = ? WHERE user = ? AND item = ?";
+        PreparedStatement insert = null;
         try (Statement stmt = conn.createStatement()) {
             conn.setAutoCommit(false);
+            insert = conn.prepareStatement(insertQuery);
             ResultSet rs = stmt.executeQuery(myQuery);
             while (rs.next()) {
                 float prediction = prediction(conn, users.get(rs.getInt(1)), users.get(rs.getInt(2)), 1000);
 
-                insertQuery = "UPDATE predictions SET prediction = " + prediction + " WHERE user = "
-                      + rs.getInt(1) + " AND item = " + rs.getInt(2);
-                stmt.executeUpdate(insertQuery);
+                insert.setFloat(1, prediction);
+                insert.setInt(2, users.get(rs.getInt(1)).getUserID());
+                insert.setInt(3, users.get(rs.getInt(2)).getUserID());
+                //insertQuery = "UPDATE predictions SET prediction = " + prediction + " WHERE user = "
+                   //   + rs.getInt(1) + " AND item = " + rs.getInt(2);
+                insert.executeUpdate();
             }
             conn.commit();
         } catch (SQLException e) {
@@ -272,7 +276,7 @@ public class RecommenderSystems {
       ARGS: Connection, the user, the item and a threshold 
      */
     public float prediction(Connection conn, User user, User item, int threshold) { // 20-60
-        System.out.print(user.getUserID() + " ");
+        
         float prediction = user.getAverageRating();
 
         String myQuery = "SELECT colValue, similarity FROM simMatrix WHERE rowValue = " + user.getUserID()
@@ -294,7 +298,7 @@ public class RecommenderSystems {
         }
 
         float numerator = 0;
-        if (neighbourhood.size() > 0) {
+        if (neighbourhood.size() > 5) {
             for (Entry<Integer, Float> entry : neighbourhood.entrySet()) {
                 numerator = numerator + (entry.getValue() * (users.get(entry.getKey()).getRatings().get(item.getUserID())
                         - users.get(entry.getKey()).getAverageRating()));
@@ -314,8 +318,9 @@ public class RecommenderSystems {
                 prediction = 10;
             }
         }
-
-        System.out.println(neighbourhood.size() + " " + prediction + " " + user.getAverageRating());
+        if(user.getUserID()%1000 == 0) {
+            System.out.println(user.getUserID() + " "+neighbourhood.size() + " " + prediction + " " + user.getAverageRating());
+        }
 
         return prediction;
     }
