@@ -25,7 +25,7 @@ public class RecommenderSystems {
         Connection conn = null;
 
         try {
-            String url = "jdbc:sqlite:C://sqlite/trainingsetdup.db";
+            String url = "jdbc:sqlite:D://trainingset.db";
             // create a connection to the database
             conn = DriverManager.getConnection(url);
 
@@ -40,8 +40,8 @@ public class RecommenderSystems {
     //function which executes the flow for the user-based recommender system
     public void userBased(Connection conn) {
         this.selectDistinctUsers(conn);
-        this.createSimilarityMatrix(conn);
-        //this.makePredictions(conn);
+        //this.createSimilarityMatrix(conn);
+        this.makePredictions(conn);
     }
 
     //function which executes the flow for the slopeOne recommender system
@@ -175,8 +175,8 @@ public class RecommenderSystems {
             e.printStackTrace();
         } finally {
             try {
-                //insert.close();
-                conn.setAutoCommit(true);
+                insert.close();
+                //conn.setAutoCommit(true);
             } catch (SQLException ex) {
                 ex.printStackTrace();
             }
@@ -249,49 +249,43 @@ public class RecommenderSystems {
      */
     public void makePredictions(Connection conn) {
         String myQuery = "SELECT user, item FROM predictions";
-
-        System.out.println("Here1");
-
+        String insertQuery = null;
+        
         try (Statement stmt = conn.createStatement()) {
+            conn.setAutoCommit(false);
             ResultSet rs = stmt.executeQuery(myQuery);
             while (rs.next()) {
-                float prediction = prediction(conn, users.get(rs.getInt(1)), users.get(rs.getInt(2)), 60);
+                float prediction = prediction(conn, users.get(rs.getInt(1)), users.get(rs.getInt(2)), 1000);
 
-                String insertQuery = "UPDATE predictions SET prediction = " + prediction + " WHERE user = "
-                        + rs.getInt(1) + " AND item = " + rs.getInt(2);
-
-                stmt.execute(insertQuery);
+                insertQuery = "UPDATE predictions SET prediction = " + prediction + " WHERE user = "
+                      + rs.getInt(1) + " AND item = " + rs.getInt(2);
+                stmt.executeUpdate(insertQuery);
             }
+            conn.commit();
         } catch (SQLException e) {
             System.out.println(e.getMessage());
         }
     }
-
+   
     /*
       Function which creates the predictions and populates the DB
       ARGS: Connection, the user, the item and a threshold 
      */
     public float prediction(Connection conn, User user, User item, int threshold) { // 20-60
+        System.out.print(user.getUserID() + " ");
         float prediction = user.getAverageRating();
 
-        //create the indexes externally
-        //String indexRowValue = "CREATE INDEX rowIndex ON simMatrix (rowValue)";
-        //String indexSimilarity = "CREATE INDEX simIndex ON simMatrix (similarity)";
         String myQuery = "SELECT colValue, similarity FROM simMatrix WHERE rowValue = " + user.getUserID()
                 + " ORDER BY simItems DESC LIMIT " + threshold;
 
-        //String myQuery = "SELECT colValue, similarity FROM simMatrix WHERE rowValue = " + user.getUserID()
-        // + " AND simItems>=5 LIMIT " + threshold;
         HashMap<Integer, Float> neighbourhood = new HashMap<Integer, Float>();
 
         try (Statement stmt = conn.createStatement()) {
-            //stmt.execute(indexRowValue);
-            //stmt.execute(indexSimilarity);
             ResultSet rs = stmt.executeQuery(myQuery);
 
             while (rs.next()) {
                 //checking if he has rated the product
-                if (users.get(rs.getInt(1)).getRatings().containsKey(item.getUserID())) {
+                if (users.get(rs.getInt(1)).getRatings().containsKey(item.getUserID()) && rs.getFloat(2) > 0 && neighbourhood.size() < 50) {
                     neighbourhood.put(rs.getInt(1), rs.getFloat(2));
                 }
             }
@@ -300,28 +294,28 @@ public class RecommenderSystems {
         }
 
         float numerator = 0;
+        if (neighbourhood.size() > 0) {
+            for (Entry<Integer, Float> entry : neighbourhood.entrySet()) {
+                numerator = numerator + (entry.getValue() * (users.get(entry.getKey()).getRatings().get(item.getUserID())
+                        - users.get(entry.getKey()).getAverageRating()));
+            }
 
-        for (Entry<Integer, Float> entry : neighbourhood.entrySet()) {
-            numerator = numerator + (entry.getValue() * (users.get(entry.getKey()).getRatings().get(item.getUserID())
-                    - users.get(entry.getKey()).getAverageRating()));
+            float denominator = 0;
+
+            for (Entry<Integer, Float> entry : neighbourhood.entrySet()) {
+                denominator = denominator + entry.getValue();
+            }
+
+            prediction = prediction + (float) (numerator / denominator);
+
+            if (prediction < 1) {
+                prediction = 1;
+            } else if (prediction > 10) {
+                prediction = 10;
+            }
         }
 
-        float denominator = 0;
-
-        for (Entry<Integer, Float> entry : neighbourhood.entrySet()) {
-            denominator = denominator + entry.getValue();
-        }
-
-        prediction = prediction + (float) (numerator / denominator);
-
-        //if <1 or >10 there is clearly something wrong => I suggest putting the average, also if the neighbourhood is <20 users use the average as well
-        /*if (prediction < 1) {
-            prediction = 1;
-        } else if (prediction > 10) {
-            prediction = 10;
-        }*/
-
-        System.out.println(prediction);
+        System.out.println(neighbourhood.size() + " " + prediction + " " + user.getAverageRating());
 
         return prediction;
     }
