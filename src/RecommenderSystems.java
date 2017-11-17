@@ -40,7 +40,7 @@ public class RecommenderSystems {
     //function which executes the flow for the user-based recommender system
     public void userBased(Connection conn) {
         this.selectDistinctUsers(conn);
-        //this.createSimilarityMatrix(conn);
+        this.createSimilarityMatrix(conn);
         this.makePredictions(conn);
     }
 
@@ -91,7 +91,7 @@ public class RecommenderSystems {
 
             System.out.println(users.size());
 
-            selectTestUsers = "SELECT DISTINCT user FROM predictions";
+            selectTestUsers = "SELECT DISTINCT user FROM test";
             testUsers = stmt.executeQuery(selectTestUsers);
 
             while (testUsers.next()) {
@@ -110,9 +110,9 @@ public class RecommenderSystems {
       ARGS: Connection
      */
     public void createSimilarityMatrix(Connection conn) {
-        String createTable = "CREATE TABLE IF NOT EXISTS simMatrix (rowValue integer, colValue integer, similarity float, simItems integer)";
-        String getLastID = "SELECT rowValue FROM simMatrix ORDER BY rowValue DESC LIMIT 1";
-        String removeLast = "DELETE FROM simMatrix WHERE rowValue IN (SELECT rowValue FROM simMatrix ORDER BY rowValue DESC LIMIT 1)";
+        String createTable = "CREATE TABLE IF NOT EXISTS matrix (rowValue integer, colValue integer, similarity float, simItems integer)";
+        String getLastID = "SELECT rowValue FROM matrix ORDER BY rowValue DESC LIMIT 1";
+        String removeLast = "DELETE FROM matrix WHERE rowValue IN (SELECT rowValue FROM matrix ORDER BY rowValue DESC LIMIT 1)";
 
         int commitCounter = 0;
         float simValue = 0;
@@ -121,7 +121,7 @@ public class RecommenderSystems {
         List<Integer> sameRatings = null;
         int lastID = 0;
 
-        String insertQuery = "INSERT INTO simMatrix VALUES (?,?,?,?)";
+        String insertQuery = "INSERT INTO matrix VALUES (?,?,?,?)";
 
         try (Statement stmt = conn.createStatement()) {
             stmt.execute(createTable);
@@ -248,8 +248,8 @@ public class RecommenderSystems {
       ARGS: Connection
      */
     public void makePredictions(Connection conn) {
-        String myQuery = "SELECT user, item FROM predictions";
-        String insertQuery = "UPDATE predictions SET prediction = ? WHERE user = ? AND item = ?";
+        String myQuery = "SELECT user, item FROM test";
+        String insertQuery = "UPDATE test SET prediction = ? WHERE user = ? AND item = ?";
         PreparedStatement insert = null;
         try (Statement stmt = conn.createStatement()) {
             conn.setAutoCommit(false);
@@ -279,7 +279,7 @@ public class RecommenderSystems {
         
         float prediction = user.getAverageRating();
 
-        String myQuery = "SELECT colValue, similarity FROM simMatrix WHERE rowValue = " + user.getUserID()
+        String myQuery = "SELECT colValue, similarity FROM matrix WHERE rowValue = " + user.getUserID()
                 + " ORDER BY simItems DESC LIMIT " + threshold;
 
         HashMap<Integer, Float> neighbourhood = new HashMap<Integer, Float>();
