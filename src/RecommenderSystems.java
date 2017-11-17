@@ -40,7 +40,7 @@ public class RecommenderSystems {
     //function which executes the flow for the user-based recommender system
     public void userBased(Connection conn) {
         this.selectDistinctUsers(conn);
-        //this.createSimilarityMatrix(conn);
+        this.createSimilarityMatrix(conn);
         this.makePredictions(conn);
     }
 
@@ -280,7 +280,7 @@ public class RecommenderSystems {
         float prediction = user.getAverageRating();
 
         String myQuery = "SELECT colValue, similarity FROM simMatrix WHERE rowValue = " + user.getUserID()
-                + " ORDER BY simItems DESC LIMIT " + threshold;
+                + " ORDER BY simItems;";// DESC LIMIT " + threshold;
 
         HashMap<Integer, Float> neighbourhood = new HashMap<Integer, Float>();
 
@@ -289,7 +289,7 @@ public class RecommenderSystems {
 
             while (rs.next()) {
                 //checking if he has rated the product
-                if (users.get(rs.getInt(1)).getRatings().containsKey(item.getUserID()) && rs.getFloat(2) > 0 && neighbourhood.size() < 50) {
+                if (users.get(rs.getInt(1)).getRatings().containsKey(item.getUserID()) && rs.getFloat(2) > 0){ //&& neighbourhood.size() < 50) {
                     neighbourhood.put(rs.getInt(1), rs.getFloat(2));
                 }
             }
@@ -298,7 +298,7 @@ public class RecommenderSystems {
         }
 
         float numerator = 0;
-        if (neighbourhood.size() > 5) {
+        if (neighbourhood.size() > 0) {
             for (Entry<Integer, Float> entry : neighbourhood.entrySet()) {
                 numerator = numerator + (entry.getValue() * (users.get(entry.getKey()).getRatings().get(item.getUserID())
                         - users.get(entry.getKey()).getAverageRating()));
@@ -318,9 +318,9 @@ public class RecommenderSystems {
                 prediction = 10;
             }
         }
-        if(user.getUserID()%1000 == 0) {
+        //if(user.getUserID()%1000 == 0) {
             System.out.println(user.getUserID() + " "+neighbourhood.size() + " " + prediction + " " + user.getAverageRating());
-        }
+        //}
 
         return prediction;
     }
