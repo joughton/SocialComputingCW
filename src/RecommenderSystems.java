@@ -35,7 +35,7 @@ public class RecommenderSystems {
 		
 	}
 
-	public float getMSE(Connection conn) {
+	public void getMSE(Connection conn) {
 		
 		makeMSEPredictions(conn);
 
@@ -43,14 +43,14 @@ public class RecommenderSystems {
 
 		if (predictedRatings.size() != actualRatings.size()) {
 			System.out.println("Not all ratings have received a prediction");
-			return 0;
+			return;
 		}
 
 		for (int i = 0; i < predictedRatings.size(); i++) {
 			sum += (predictedRatings.get(i) - actualRatings.get(i)) * (predictedRatings.get(i) - actualRatings.get(i));
 		}
 
-		return (float) sum / predictedRatings.size();
+		System.out.println((float) sum / predictedRatings.size());
 	}
 
 	/**
