@@ -25,8 +25,8 @@ public class RecommenderSystems {
 			ResultSet rs = stmt.executeQuery(myQuery);
 			
 			while (rs.next()) {
-				predictedRatings.add(rs.getFloat(3));
-				actualRatings.add(users.get(rs.getInt(1)).getRatings().get(rs.getInt(2)));
+                            predictedRatings.add(rs.getFloat(3));
+                            actualRatings.add(users.get(rs.getInt(1)).getRatings().get(rs.getInt(2)));
 			}
 			
 		} catch (SQLException e) {
@@ -85,8 +85,9 @@ public class RecommenderSystems {
 	// function which executes the flow for the user-based recommender system
 	public void userBased(Connection conn) {
 		this.selectDistinctUsers(conn);
-		this.createSimilarityMatrix(conn);
+		//this.createSimilarityMatrix(conn);
 		this.makePredictions(conn);
+                this.getMSE(conn);
 	}
 
 	// function which executes the flow for the slopeOne recommender system
@@ -297,17 +298,16 @@ public class RecommenderSystems {
 			insert = conn.prepareStatement(insertQuery);
 			ResultSet rs = stmt.executeQuery(myQuery);
 			while (rs.next()) {
-				float prediction = prediction(conn, users.get(rs.getInt(1)), users.get(rs.getInt(2)), 1000);
+				float prediction = prediction(conn, users.get(rs.getInt(1)), users.get(rs.getInt(2)), 10000);
 
 				insert.setFloat(1, prediction);
 				insert.setInt(2, users.get(rs.getInt(1)).getUserID());
 				insert.setInt(3, users.get(rs.getInt(2)).getUserID());
-				// insertQuery = "UPDATE predictions SET prediction = " + prediction + " WHERE
-				// user = "
-				// + rs.getInt(1) + " AND item = " + rs.getInt(2);
+				insertQuery = "UPDATE predictions SET prediction = " + prediction + " WHERE user = "
+                                    + rs.getInt(1) + " AND item = " + rs.getInt(2);
 				insert.executeUpdate();
 			}
-			conn.commit();
+			//conn.commit();
 		} catch (SQLException e) {
 			System.out.println(e.getMessage());
 		}
@@ -322,7 +322,7 @@ public class RecommenderSystems {
 		float prediction = user.getAverageRating();
 
 		String myQuery = "SELECT colValue, similarity FROM matrix WHERE rowValue = " + user.getUserID()
-				+ " ORDER BY simItems DESC LIMIT " + threshold;
+				+ " ORDER BY simItems";// DESC LIMIT " + threshold;
 
 		HashMap<Integer, Float> neighbourhood = new HashMap<Integer, Float>();
 
@@ -331,8 +331,8 @@ public class RecommenderSystems {
 
 			while (rs.next()) {
 				// checking if he has rated the product
-				if (users.get(rs.getInt(1)).getRatings().containsKey(item.getUserID()) && rs.getFloat(2) > 0
-						&& neighbourhood.size() < 50) {
+				if (users.get(rs.getInt(1)).getRatings().containsKey(item.getUserID()) && rs.getFloat(2) > 0) {
+						//&& neighbourhood.size() < 500) {
 					neighbourhood.put(rs.getInt(1), rs.getFloat(2));
 				}
 			}
@@ -341,7 +341,7 @@ public class RecommenderSystems {
 		}
 
 		float numerator = 0;
-		if (neighbourhood.size() > 5) {
+		if (neighbourhood.size() > 0) {
 			for (Entry<Integer, Float> entry : neighbourhood.entrySet()) {
 				numerator = numerator
 						+ (entry.getValue() * (users.get(entry.getKey()).getRatings().get(item.getUserID())
@@ -362,11 +362,9 @@ public class RecommenderSystems {
 				prediction = 10;
 			}
 		}
-		if (user.getUserID() % 1000 == 0) {
-			System.out.println(
-					user.getUserID() + " " + neighbourhood.size() + " " + prediction + " " + user.getAverageRating());
-		}
-
+		//if (user.getUserID() % 1000 == 0) {
+			System.out.println(user.getUserID() + " " + neighbourhood.size() + " " + prediction + " " + user.getAverageRating());
+		//}
 		return prediction;
 	}
 
