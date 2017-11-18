@@ -331,7 +331,7 @@ public class RecommenderSystems {
 
 			while (rs.next()) {
 				// checking if he has rated the product
-				if (users.get(rs.getInt(1)).getRatings().containsKey(item.getUserID()) && rs.getFloat(2) > 0 && neighbourhood.size() < 50) {
+				if (users.get(rs.getInt(1)).getRatings().containsKey(item.getUserID()) && rs.getFloat(2) > 0 && neighbourhood.size() < 10) {
 					neighbourhood.put(rs.getInt(1), rs.getFloat(2));
 				}
 			}
@@ -342,9 +342,7 @@ public class RecommenderSystems {
 		float numerator = 0;
 		if (neighbourhood.size() > 0) {
 			for (Entry<Integer, Float> entry : neighbourhood.entrySet()) {
-				numerator = numerator
-						+ (entry.getValue() * (users.get(entry.getKey()).getRatings().get(item.getUserID())
-								- users.get(entry.getKey()).getAverageRating()));
+				numerator = numerator+ (entry.getValue() * (users.get(entry.getKey()).getRatings().get(item.getUserID()) - users.get(entry.getKey()).getAverageRating()));
 			}
 
 			float denominator = 0;
