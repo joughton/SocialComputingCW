@@ -278,9 +278,10 @@ public class RecommenderSystems {
     public float prediction(Connection conn, User user, User item, int threshold) { // 20-60
         
         float prediction = user.getAverageRating();
-
-        String myQuery = "SELECT colValue, similarity FROM simMatrix WHERE rowValue = " + user.getUserID()
-                + " ORDER BY simItems DESC LIMIT " + threshold;
+        String myQuery="SELECT * FROM (select colValue, similarity from matrix WHERE rowValue = " + user.getUserID()
+				+ " ORDER BY simItems DESC LIMIT " + threshold+") ORDER BY similarity desc";
+        //String myQuery = "SELECT colValue, similarity FROM simMatrix WHERE rowValue = " + user.getUserID()
+               // + " ORDER BY simItems DESC LIMIT " + threshold;
 
         HashMap<Integer, Float> neighbourhood = new HashMap<Integer, Float>();
 
