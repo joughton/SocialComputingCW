@@ -298,7 +298,7 @@ public class RecommenderSystems {
 			insert = conn.prepareStatement(insertQuery);
 			ResultSet rs = stmt.executeQuery(myQuery);
 			while (rs.next()) {
-				float prediction = prediction(conn, users.get(rs.getInt(1)), users.get(rs.getInt(2)), 10000);
+				float prediction = prediction(conn, users.get(rs.getInt(1)), users.get(rs.getInt(2)), 1000);
 
 				insert.setFloat(1, prediction);
 				insert.setInt(2, users.get(rs.getInt(1)).getUserID());
@@ -322,7 +322,7 @@ public class RecommenderSystems {
 		float prediction = user.getAverageRating();
 
 		String myQuery = "SELECT colValue, similarity FROM matrix WHERE rowValue = " + user.getUserID()
-				+ " ORDER BY simItems";// DESC LIMIT " + threshold;
+				+ " ORDER BY simItems DESC LIMIT " + threshold;
 
 		HashMap<Integer, Float> neighbourhood = new HashMap<Integer, Float>();
 
@@ -331,8 +331,7 @@ public class RecommenderSystems {
 
 			while (rs.next()) {
 				// checking if he has rated the product
-				if (users.get(rs.getInt(1)).getRatings().containsKey(item.getUserID()) && rs.getFloat(2) > 0) {
-						//&& neighbourhood.size() < 500) {
+				if (users.get(rs.getInt(1)).getRatings().containsKey(item.getUserID()) && rs.getFloat(2) > 0 && neighbourhood.size() < 30) {
 					neighbourhood.put(rs.getInt(1), rs.getFloat(2));
 				}
 			}
