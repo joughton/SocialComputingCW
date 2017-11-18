@@ -320,9 +320,9 @@ public class RecommenderSystems {
 	public float prediction(Connection conn, User user, User item, int threshold) { // 20-60
 
 		float prediction = user.getAverageRating();
-
-		String myQuery = "SELECT colValue, similarity FROM matrix WHERE rowValue = " + user.getUserID()
-				+ " ORDER BY simItems DESC LIMIT " + threshold;
+                //select * from (select * from simMatrix where rowValue=4 order by similarity desc limit 200) order by simItems desc;
+		String myQuery = "SELECT * FROM (select colValue, similarity from matrix WHERE rowValue = " + user.getUserID()
+				+ " ORDER BY simItems DESC LIMIT " + threshold+") ORDER BY similarity desc";
 
 		HashMap<Integer, Float> neighbourhood = new HashMap<Integer, Float>();
 
@@ -331,7 +331,7 @@ public class RecommenderSystems {
 
 			while (rs.next()) {
 				// checking if he has rated the product
-				if (users.get(rs.getInt(1)).getRatings().containsKey(item.getUserID()) && rs.getFloat(2) > 0 && neighbourhood.size() < 30) {
+				if (users.get(rs.getInt(1)).getRatings().containsKey(item.getUserID()) && rs.getFloat(2) > 0 && neighbourhood.size() < 50) {
 					neighbourhood.put(rs.getInt(1), rs.getFloat(2));
 				}
 			}
