@@ -40,7 +40,7 @@ public class RecommenderSystems {
     //function which executes the flow for the user-based recommender system
     public void userBased(Connection conn) {
         this.selectDistinctUsers(conn);
-        this.createSimilarityMatrix(conn);
+        //this.createSimilarityMatrix(conn);
         this.makePredictions(conn);
     }
 
