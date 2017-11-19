@@ -338,9 +338,11 @@ public class RecommenderSystems {
         }
 
         float numerator = 0;
+        int count = 0;
+        float sum = 0;
         if (neighbourhood.size() >= 10) {
             for (Entry<Integer, Float> entry : neighbourhood.entrySet()) {
-                numerator = numerator + (entry.getValue() * (users.get(entry.getKey()).getRatings().get(item.getUserID()) - users.get(entry.getKey()).getAverageRating()));
+                numerator = numerator + users.get(entry.getKey()).getRatings().size() * (entry.getValue() * ((users.get(entry.getKey()).getRatings().get(item.getUserID()) - users.get(entry.getKey()).getAverageRating()) / users.get(entry.getKey()).getRatings().size()));
             }
 
             float denominator = 0;
@@ -352,8 +354,7 @@ public class RecommenderSystems {
             prediction = prediction + (float) (numerator / denominator);
 
         } else {
-            int count = 0;
-            float sum = 0;
+            
             for (Entry<Integer, User> entry : users.entrySet()) {
                 if (entry.getValue().getRatings().containsKey(item.getUserID())) {
                     count++;
@@ -370,7 +371,7 @@ public class RecommenderSystems {
             prediction = 10;
         }
         //if (user.getUserID() % 1000 == 0) {
-        System.out.println(user.getUserID() + " " + neighbourhood.size() + " " + prediction + " " + user.getAverageRating());
+        System.out.println(user.getUserID() + " " + neighbourhood.size() + " " + prediction + " " + user.getAverageRating()+" "+sum);
         //}
         return prediction;
     }
