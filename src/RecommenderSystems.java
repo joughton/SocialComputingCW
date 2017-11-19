@@ -256,13 +256,13 @@ public class RecommenderSystems {
             insert = conn.prepareStatement(insertQuery);
             ResultSet rs = stmt.executeQuery(myQuery);
             while (rs.next()) {
-                float prediction = prediction(conn, users.get(rs.getInt(1)), users.get(rs.getInt(2)), 1000);
+                float prediction = prediction(conn, users.get(rs.getInt(1)), users.get(rs.getInt(2)), 2000);
 
                 insert.setFloat(1, prediction);
                 insert.setInt(2, users.get(rs.getInt(1)).getUserID());
                 insert.setInt(3, users.get(rs.getInt(2)).getUserID());
                 //insertQuery = "UPDATE predictions SET prediction = " + prediction + " WHERE user = "
-                   //   + rs.getInt(1) + " AND item = " + rs.getInt(2);
+                //   + rs.getInt(1) + " AND item = " + rs.getInt(2);
                 insert.executeUpdate();
             }
             conn.commit();
@@ -270,24 +270,24 @@ public class RecommenderSystems {
             System.out.println(e.getMessage());
         }
     }
-   
+
     /*
       Function which creates the predictions and populates the DB
       ARGS: Connection, the user, the item and a threshold 
      */
     public float prediction(Connection conn, User user, User item, int threshold) { // 20-60
-        
+
         float prediction = user.getAverageRating();
-        String myQuery="SELECT * FROM (select colValue, similarity from simMatrix WHERE rowValue = " + user.getUserID()
-				+ " ORDER BY simItems DESC LIMIT " + threshold+") ORDER BY similarity desc";
+        String myQuery = "SELECT * FROM (select colValue, similarity from simMatrix WHERE rowValue = " + user.getUserID()
+                + " ORDER BY simItems DESC LIMIT " + threshold + ") ORDER BY similarity desc";
         //String myQuery = "SELECT colValue, similarity FROM simMatrix WHERE rowValue = " + user.getUserID()
-               // + " ORDER BY simItems DESC LIMIT " + threshold;
+        // + " ORDER BY simItems DESC LIMIT " + threshold;
 
         HashMap<Integer, Float> neighbourhood = new HashMap<Integer, Float>();
-
+        
         try (Statement stmt = conn.createStatement()) {
             ResultSet rs = stmt.executeQuery(myQuery);
-
+            
             while (rs.next()) {
                 //checking if he has rated the product
                 if (users.get(rs.getInt(1)).getRatings().containsKey(item.getUserID()) && rs.getFloat(2) > 0 && neighbourhood.size() < 50) {
@@ -299,10 +299,9 @@ public class RecommenderSystems {
         }
 
         float numerator = 0;
-        if (neighbourhood.size() > 5) {
+        if (neighbourhood.size() > 0) {
             for (Entry<Integer, Float> entry : neighbourhood.entrySet()) {
-                numerator = numerator + (entry.getValue() * (users.get(entry.getKey()).getRatings().get(item.getUserID())
-                        - users.get(entry.getKey()).getAverageRating()));
+                numerator = numerator + users.get(entry.getKey()).getRatings().size() * (entry.getValue() * ((users.get(entry.getKey()).getRatings().get(item.getUserID()) - users.get(entry.getKey()).getAverageRating()) / users.get(entry.getKey()).getRatings().size()));
             }
 
             float denominator = 0;
@@ -313,25 +312,27 @@ public class RecommenderSystems {
 
             prediction = prediction + (float) (numerator / denominator);
 
-            if (prediction < 1) {
-                prediction = 1;
-            } else if (prediction > 10) {
-                prediction = 10;
-            }
         } else {
             int count = 0;
-            int sum=0;
+            float sum = 0;
             for (Entry<Integer, User> entry : users.entrySet()) {
-                if (entry.getValue().getRatings().containsKey(item.getUserID())){
+                if (entry.getValue().getRatings().containsKey(item.getUserID())) {
                     count++;
-                    sum+=(users.get(entry.getKey()).getRatings().get(item.getUserID())- users.get(entry.getKey()).getAverageRating());
+                    sum += (users.get(entry.getKey()).getRatings().get(item.getUserID()) - users.get(entry.getKey()).getAverageRating());
                 }
             }
-            sum=sum/count;
-            prediction+=sum;
+            sum = sum / count;
+            prediction += sum;
         }
+
+        if (prediction < 1) {
+            prediction = 1;
+        } else if (prediction > 10) {
+            prediction = 10;
+        }
+
         //if(user.getUserID()%1000 == 0) {
-            System.out.println(user.getUserID() + " "+neighbourhood.size() + " " + prediction + " " + user.getAverageRating());
+        System.out.println(user.getUserID() + " " + neighbourhood.size() + " " + prediction + " " + user.getAverageRating());
         //}
 
         return prediction;
