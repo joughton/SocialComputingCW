@@ -320,7 +320,7 @@ public class RecommenderSystems {
         float prediction = user.getAverageRating();
         //select * from (select * from simMatrix where rowValue=4 order by similarity desc limit 200) order by simItems desc;
         String myQuery = "SELECT * FROM (select colValue, similarity from matrix WHERE rowValue = " + user.getUserID()
-                + " ORDER BY simItems DESC LIMIT " + threshold + ") ORDER BY similarity desc";
+                + " ORDER BY simItems DESC) ORDER BY similarity desc";
 
         HashMap<Integer, Float> neighbourhood = new HashMap<Integer, Float>();
 
@@ -329,7 +329,7 @@ public class RecommenderSystems {
 
             while (rs.next()) {
                 // checking if he has rated the product
-                if (users.get(rs.getInt(1)).getRatings().containsKey(item.getUserID()) && rs.getFloat(2) > 0 && neighbourhood.size() < 10) {
+                if (users.get(rs.getInt(1)).getRatings().containsKey(item.getUserID()) && rs.getFloat(2) > 0 && neighbourhood.size() < 50) {
                     neighbourhood.put(rs.getInt(1), rs.getFloat(2));
                 }
             }
@@ -338,7 +338,7 @@ public class RecommenderSystems {
         }
 
         float numerator = 0;
-        if (neighbourhood.size() > 3) {
+        if (neighbourhood.size() >= 10) {
             for (Entry<Integer, Float> entry : neighbourhood.entrySet()) {
                 numerator = numerator + (entry.getValue() * (users.get(entry.getKey()).getRatings().get(item.getUserID()) - users.get(entry.getKey()).getAverageRating()));
             }
@@ -351,14 +351,9 @@ public class RecommenderSystems {
 
             prediction = prediction + (float) (numerator / denominator);
 
-            if (prediction < 1) {
-                prediction = 1;
-            } else if (prediction > 10) {
-                prediction = 10;
-            }
         } else {
             int count = 0;
-            int sum = 0;
+            float sum = 0;
             for (Entry<Integer, User> entry : users.entrySet()) {
                 if (entry.getValue().getRatings().containsKey(item.getUserID())) {
                     count++;
@@ -367,6 +362,12 @@ public class RecommenderSystems {
             }
             sum = sum / count;
             prediction += sum;
+        }
+
+        if (prediction < 1) {
+            prediction = 1;
+        } else if (prediction > 10) {
+            prediction = 10;
         }
         //if (user.getUserID() % 1000 == 0) {
         System.out.println(user.getUserID() + " " + neighbourhood.size() + " " + prediction + " " + user.getAverageRating());
