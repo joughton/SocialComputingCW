@@ -180,9 +180,9 @@ public class RecommenderSystems {
             for (Entry<Integer, User> entry : users.entrySet()) {
                 if (entry.getValue().getUserID() >= lastID && toTestUsers.contains(entry.getValue())) {
                     for (Entry<Integer, User> entryJ : users.entrySet()) {
-                        if (entry.getValue().getUserID() >= entryJ.getValue().getUserID()) {
-                            continue;
-                        } else {
+                        //if (entry.getValue().getUserID() >= entryJ.getValue().getUserID()) {
+                           // continue;
+                        //} else {
                             sameRatings = getSameItems(entry.getValue(), entryJ.getValue());
                             similarItems = sameRatings.size();
                             if (similarItems == 1) {
@@ -194,7 +194,7 @@ public class RecommenderSystems {
                             if (simValue == 0) {
                                 continue;
                             }
-                        }
+                       // }
 
                         commitCounter++;
 
@@ -296,7 +296,7 @@ public class RecommenderSystems {
             insert = conn.prepareStatement(insertQuery);
             ResultSet rs = stmt.executeQuery(myQuery);
             while (rs.next()) {
-                float prediction = prediction(conn, users.get(rs.getInt(1)), users.get(rs.getInt(2)), 1000);
+                float prediction = prediction(conn, users.get(rs.getInt(1)), users.get(rs.getInt(2)), 2000);
 
                 insert.setFloat(1, prediction);
                 insert.setInt(2, users.get(rs.getInt(1)).getUserID());
@@ -318,9 +318,8 @@ public class RecommenderSystems {
     public float prediction(Connection conn, User user, User item, int threshold) { // 20-60
 
         float prediction = user.getAverageRating();
-        //select * from (select * from simMatrix where rowValue=4 order by similarity desc limit 200) order by simItems desc;
         String myQuery = "SELECT * FROM (select colValue, similarity from matrix WHERE rowValue = " + user.getUserID()
-                + " ORDER BY simItems DESC) ORDER BY similarity desc";
+                + " ORDER BY simItems DESC LIMIT "+threshold+") ORDER BY similarity desc";
 
         HashMap<Integer, Float> neighbourhood = new HashMap<Integer, Float>();
 
