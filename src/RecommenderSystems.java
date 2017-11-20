@@ -25,7 +25,7 @@ public class RecommenderSystems {
         Connection conn = null;
 
         try {
-            String url = "jdbc:sqlite:D://trainingset.db";
+            String url = "jdbc:sqlite:D://new.db";
             // create a connection to the database
             conn = DriverManager.getConnection(url);
 
@@ -40,20 +40,8 @@ public class RecommenderSystems {
     //function which executes the flow for the user-based recommender system
     public void userBased(Connection conn) {
         this.selectDistinctUsers(conn);
-        //this.createSimilarityMatrix(conn);
-        this.makePredictions(conn);
-    }
-
-    //function which executes the flow for the slopeOne recommender system
-    public void slope(Connection conn) {
-        this.selectDistinctUsers(conn);
-        for (Entry<Integer, User> entryI : users.entrySet()) {
-            for (Entry<Integer, User> entryJ : users.entrySet()) {		//for every user-item pair
-                if (entryI.getValue().getUserID() != entryJ.getValue().getUserID()) {
-                    slopeOne(entryJ.getValue(), entryI.getValue());
-                }
-            }
-        }
+        this.createSimilarityMatrix(conn);
+        //this.makePredictions(conn);
     }
 
     /*
@@ -104,7 +92,6 @@ public class RecommenderSystems {
         }
     }
 
-    //if don't appear in the similarity set
     /*
       Function which creates the similarity matrix
       ARGS: Connection
@@ -138,9 +125,9 @@ public class RecommenderSystems {
             for (Entry<Integer, User> entry : users.entrySet()) {
                 if (entry.getValue().getUserID() >= lastID && toTestUsers.contains(entry.getValue())) {
                     for (Entry<Integer, User> entryJ : users.entrySet()) {
-                        if (entry.getValue().getUserID() >= entryJ.getValue().getUserID()) {
-                            continue;
-                        } else {
+                        //if (entry.getValue().getUserID() >= entryJ.getValue().getUserID()) {
+                          //  continue;
+                        //} else {
                             sameRatings = getSameItems(entry.getValue(), entryJ.getValue());
                             similarItems = sameRatings.size();
                             if (similarItems == 1) {
@@ -152,7 +139,7 @@ public class RecommenderSystems {
                             if (simValue == 0) {
                                 continue;
                             }
-                        }
+                        //}
 
                         commitCounter++;
 
@@ -278,16 +265,21 @@ public class RecommenderSystems {
     public float prediction(Connection conn, User user, User item, int threshold) { // 20-60
 
         float prediction = user.getAverageRating();
-        String myQuery = "SELECT * FROM (select colValue, similarity from simMatrix WHERE rowValue = " + user.getUserID()
-                + " ORDER BY simItems DESC LIMIT " + threshold + ") ORDER BY similarity desc";
-        //String myQuery = "SELECT colValue, similarity FROM simMatrix WHERE rowValue = " + user.getUserID()
-        // + " ORDER BY simItems DESC LIMIT " + threshold;
+        String myQuery = null;
+        //because only half of the sim matrix is populated, for bigger entries take rowvalue
+        if (user.getUserID() < 100000) {
+            myQuery = "SELECT * FROM (select colValue, similarity from simMatrix WHERE rowValue = " + user.getUserID()
+                    + " ORDER BY simItems DESC LIMIT " + threshold + ") ORDER BY similarity desc";
+        } else {
+            myQuery = "SELECT * FROM (select rowValue, similarity from simMatrix WHERE colValue = " + user.getUserID()
+                    + " ORDER BY simItems DESC LIMIT " + threshold + ") ORDER BY similarity desc";
+        }
 
         HashMap<Integer, Float> neighbourhood = new HashMap<Integer, Float>();
-        
+
         try (Statement stmt = conn.createStatement()) {
             ResultSet rs = stmt.executeQuery(myQuery);
-            
+
             while (rs.next()) {
                 //checking if he has rated the product
                 if (users.get(rs.getInt(1)).getRatings().containsKey(item.getUserID()) && rs.getFloat(2) > 0 && neighbourhood.size() < 50) {
@@ -299,7 +291,7 @@ public class RecommenderSystems {
         }
 
         float numerator = 0;
-        if (neighbourhood.size() > 0) {
+        if (neighbourhood.size() >= 10) {
             for (Entry<Integer, Float> entry : neighbourhood.entrySet()) {
                 numerator = numerator + users.get(entry.getKey()).getRatings().size() * (entry.getValue() * ((users.get(entry.getKey()).getRatings().get(item.getUserID()) - users.get(entry.getKey()).getAverageRating()) / users.get(entry.getKey()).getRatings().size()));
             }
@@ -331,14 +323,24 @@ public class RecommenderSystems {
             prediction = 10;
         }
 
-        //if(user.getUserID()%1000 == 0) {
         System.out.println(user.getUserID() + " " + neighbourhood.size() + " " + prediction + " " + user.getAverageRating());
-        //}
 
         return prediction;
     }
 
-    //TO-DO: SLOPE ONE COMMENTS
+    /*
+    //function which executes the flow for the slopeOne recommender system
+    public void slope(Connection conn) {
+        this.selectDistinctUsers(conn);
+        for (Entry<Integer, User> entryI : users.entrySet()) {
+            for (Entry<Integer, User> entryJ : users.entrySet()) {		//for every user-item pair
+                if (entryI.getValue().getUserID() != entryJ.getValue().getUserID()) {
+                    slopeOne(entryJ.getValue(), entryI.getValue());
+                }
+            }
+        }
+    }
+    
     public void slopeOne(User u1, User u2) {
 
         float u1Avg = u1.getAverageRating();
@@ -410,7 +412,7 @@ public class RecommenderSystems {
 
             System.out.println(diffA.getKey());
         }
-    }
+    }*/
 
     public static void main(String[] args) {
         RecommenderSystems myJDBC = new RecommenderSystems();
