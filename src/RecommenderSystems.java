@@ -126,19 +126,19 @@ public class RecommenderSystems {
                 if (entry.getValue().getUserID() >= lastID && toTestUsers.contains(entry.getValue())) {
                     for (Entry<Integer, User> entryJ : users.entrySet()) {
                         //if (entry.getValue().getUserID() >= entryJ.getValue().getUserID()) {
-                          //  continue;
+                        //  continue;
                         //} else {
-                            sameRatings = getSameItems(entry.getValue(), entryJ.getValue());
-                            similarItems = sameRatings.size();
-                            if (similarItems == 1) {
-                                continue;
-                            } else {
-                                simValue = similarityCoefficient(entry.getValue(), entryJ.getValue(), sameRatings);
-                            }
+                        sameRatings = getSameItems(entry.getValue(), entryJ.getValue());
+                        similarItems = sameRatings.size();
+                        if (similarItems == 1) {
+                            continue;
+                        } else {
+                            simValue = similarityCoefficient(entry.getValue(), entryJ.getValue(), sameRatings);
+                        }
 
-                            if (simValue == 0) {
-                                continue;
-                            }
+                        if (simValue == 0) {
+                            continue;
+                        }
                         //}
 
                         commitCounter++;
@@ -266,14 +266,8 @@ public class RecommenderSystems {
 
         float prediction = user.getAverageRating();
         String myQuery = null;
-        //because only half of the sim matrix is populated, for bigger entries take rowvalue
-        if (user.getUserID() < 100000) {
-            myQuery = "SELECT * FROM (select colValue, similarity from simMatrix WHERE rowValue = " + user.getUserID()
-                    + " ORDER BY simItems DESC LIMIT " + threshold + ") ORDER BY similarity desc";
-        } else {
-            myQuery = "SELECT * FROM (select rowValue, similarity from simMatrix WHERE colValue = " + user.getUserID()
-                    + " ORDER BY simItems DESC LIMIT " + threshold + ") ORDER BY similarity desc";
-        }
+        myQuery = "SELECT * FROM (select colValue, similarity from simMatrix WHERE rowValue = " + user.getUserID()
+                + " ORDER BY simItems DESC LIMIT " + threshold + ") ORDER BY similarity desc";
 
         HashMap<Integer, Float> neighbourhood = new HashMap<Integer, Float>();
 
@@ -413,7 +407,6 @@ public class RecommenderSystems {
             System.out.println(diffA.getKey());
         }
     }*/
-
     public static void main(String[] args) {
         RecommenderSystems myJDBC = new RecommenderSystems();
         myJDBC.userBased(RecommenderSystems.connect());
