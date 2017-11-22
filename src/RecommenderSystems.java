@@ -296,7 +296,7 @@ public class RecommenderSystems {
             insert = conn.prepareStatement(insertQuery);
             ResultSet rs = stmt.executeQuery(myQuery);
             while (rs.next()) {
-                float prediction = prediction(conn, users.get(rs.getInt(1)), users.get(rs.getInt(2)), 2000);
+                float prediction = prediction(conn, users.get(rs.getInt(1)), users.get(rs.getInt(2)), 1000);
 
                 insert.setFloat(1, prediction);
                 insert.setInt(2, users.get(rs.getInt(1)).getUserID());
@@ -328,7 +328,7 @@ public class RecommenderSystems {
 
             while (rs.next()) {
                 // checking if he has rated the product
-                if (users.get(rs.getInt(1)).getRatings().containsKey(item.getUserID()) && rs.getFloat(2) > 0 && neighbourhood.size() < 50) {
+                if (users.get(rs.getInt(1)).getRatings().containsKey(item.getUserID()) && rs.getFloat(2) > 0 && neighbourhood.size() < 20) {
                     neighbourhood.put(rs.getInt(1), rs.getFloat(2));
                 }
             }
@@ -339,7 +339,7 @@ public class RecommenderSystems {
         float numerator = 0;
         int count = 0;
         float sum = 0;
-        if (neighbourhood.size() >= 10) {
+        if (neighbourhood.size() > 0) {
             for (Entry<Integer, Float> entry : neighbourhood.entrySet()) {
                 numerator = numerator + users.get(entry.getKey()).getRatings().size() * (entry.getValue() * ((users.get(entry.getKey()).getRatings().get(item.getUserID()) - users.get(entry.getKey()).getAverageRating()) / users.get(entry.getKey()).getRatings().size()));
             }
