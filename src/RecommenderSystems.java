@@ -328,7 +328,7 @@ public class RecommenderSystems {
 
             while (rs.next()) {
                 // checking if he has rated the product
-                if (users.get(rs.getInt(1)).getRatings().containsKey(item.getUserID()) && rs.getFloat(2) > 0 && neighbourhood.size() < 20) {
+                if (users.get(rs.getInt(1)).getRatings().containsKey(item.getUserID()) && rs.getFloat(2) > 0 && neighbourhood.size() < 40) {
                     neighbourhood.put(rs.getInt(1), rs.getFloat(2));
                 }
             }
@@ -339,7 +339,16 @@ public class RecommenderSystems {
         float numerator = 0;
         int count = 0;
         float sum = 0;
-        if (neighbourhood.size() > 0) {
+         if (neighbourhood.size() < 10 || user.getRatings().size()<10) {
+            for (Entry<Integer, User> entry : users.entrySet()) {
+                if (entry.getValue().getRatings().containsKey(item.getUserID())) {
+                    count++;
+                    sum += (users.get(entry.getKey()).getRatings().get(item.getUserID()) - users.get(entry.getKey()).getAverageRating());
+                }
+            }
+            sum = sum / count;
+            prediction += sum;
+        } else {
             for (Entry<Integer, Float> entry : neighbourhood.entrySet()) {
                 numerator = numerator + users.get(entry.getKey()).getRatings().size() * (entry.getValue() * ((users.get(entry.getKey()).getRatings().get(item.getUserID()) - users.get(entry.getKey()).getAverageRating()) / users.get(entry.getKey()).getRatings().size()));
             }
@@ -351,17 +360,6 @@ public class RecommenderSystems {
             }
 
             prediction = prediction + (float) (numerator / denominator);
-
-        } else {
-            
-            for (Entry<Integer, User> entry : users.entrySet()) {
-                if (entry.getValue().getRatings().containsKey(item.getUserID())) {
-                    count++;
-                    sum += (users.get(entry.getKey()).getRatings().get(item.getUserID()) - users.get(entry.getKey()).getAverageRating());
-                }
-            }
-            sum = sum / count;
-            prediction += sum;
         }
 
         if (prediction < 1) {
