@@ -285,6 +285,7 @@ public class RecommenderSystems {
         }
 
         float numerator = 0;
+        
         if (neighbourhood.size() < 10 || user.getRatings().size()<5) {
             int count = 0;
             float sum = 0;
