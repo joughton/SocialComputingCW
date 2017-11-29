@@ -9,10 +9,53 @@ import java.util.Map.Entry;
  */
 public class RecommenderSystems {
 
-    /*
-      ArrayList of users IDs
-      HashMap of user IDs linked to users
-      HashMap for differences?
+    /**
+     *
+     * Jacob's Suggested Code Start
+     *
+     */
+    List<Float> predictedRatings = new ArrayList<Float>(); // ArrayList of predictedRatings, index N = Nth entry
+    List<Integer> actualRatings = new ArrayList<Integer>(); // ArrayList of actualRatings, index N = Nth entry
+
+    public void makeMSEPredictions(Connection conn) {
+
+        String myQuery = "SELECT * FROM test";
+        try (Statement stmt = conn.createStatement()) {
+            ResultSet rs = stmt.executeQuery(myQuery);
+
+            while (rs.next()) {
+                predictedRatings.add(rs.getFloat(3));
+                actualRatings.add(users.get(rs.getInt(1)).getRatings().get(rs.getInt(2)));
+            }
+
+        } catch (SQLException e) {
+            System.out.println(e.getMessage());
+        }
+
+    }
+
+    public void getMSE(Connection conn) {
+
+        makeMSEPredictions(conn);
+
+        float sum = 0;
+
+        if (predictedRatings.size() != actualRatings.size()) {
+            System.out.println("Not all ratings have received a prediction");
+            return;
+        }
+
+        for (int i = 0; i < predictedRatings.size(); i++) {
+            sum += (predictedRatings.get(i) - actualRatings.get(i)) * (predictedRatings.get(i) - actualRatings.get(i));
+        }
+
+        System.out.println((float) sum / predictedRatings.size());
+    }
+
+    /**
+     *
+     * Jacob's Suggested Code End
+     *
      */
     List<Integer> distinctUsers = new ArrayList<Integer>();
     Map<Integer, User> users = new HashMap<Integer, User>();
@@ -20,7 +63,7 @@ public class RecommenderSystems {
     Set<User> toTestUsers = new HashSet<User>();
     User user;
 
-    //Creates connection to the database
+    // Creates connection to the database
     public static Connection connect() {
         Connection conn = null;
 
@@ -37,18 +80,19 @@ public class RecommenderSystems {
         return conn;
     }
 
-    //function which executes the flow for the user-based recommender system
+    // function which executes the flow for the user-based recommender system
     public void userBased(Connection conn) {
         this.selectDistinctUsers(conn);
-        this.createSimilarityMatrix(conn);
+        //this.createSimilarityMatrix(conn);
         this.makePredictions(conn);
+        this.getMSE(conn);
     }
 
-    //function which executes the flow for the slopeOne recommender system
+    // function which executes the flow for the slopeOne recommender system
     public void slope(Connection conn) {
         this.selectDistinctUsers(conn);
         for (Entry<Integer, User> entryI : users.entrySet()) {
-            for (Entry<Integer, User> entryJ : users.entrySet()) {		//for every user-item pair
+            for (Entry<Integer, User> entryJ : users.entrySet()) { // for every user-item pair
                 if (entryI.getValue().getUserID() != entryJ.getValue().getUserID()) {
                     slopeOne(entryJ.getValue(), entryI.getValue());
                 }
@@ -57,9 +101,8 @@ public class RecommenderSystems {
     }
 
     /*
-      Function which reads all the users from the database and puts them
-      in the arraylist and hashmap
-      ARGS: Connection
+	 * Function which reads all the users from the database and puts them in the
+	 * arraylist and hashmap ARGS: Connection
      */
     public void selectDistinctUsers(Connection conn) {
         String selectUsers = "SELECT DISTINCT userID FROM trainingset";
@@ -69,12 +112,12 @@ public class RecommenderSystems {
         ResultSet testUsers = null;
 
         try (Statement stmt = conn.createStatement(); ResultSet rs = stmt.executeQuery(selectUsers);) {
-            //populate the userIDs
+            // populate the userIDs
             while (rs.next()) {
                 distinctUsers.add(rs.getInt(1));
             }
 
-            //populate the hashmaps of the users and the hashmap of users
+            // populate the hashmaps of the users and the hashmap of users
             for (int i = 0; i < distinctUsers.size(); i++) {
                 selectUser = "SELECT itemID, rating FROM trainingset WHERE userID = " + distinctUsers.get(i);
 
@@ -104,10 +147,9 @@ public class RecommenderSystems {
         }
     }
 
-    //if don't appear in the similarity set
+    // if don't appear in the similarity set
     /*
-      Function which creates the similarity matrix
-      ARGS: Connection
+	 * Function which creates the similarity matrix ARGS: Connection
      */
     public void createSimilarityMatrix(Connection conn) {
         String createTable = "CREATE TABLE IF NOT EXISTS matrix (rowValue integer, colValue integer, similarity float, simItems integer)";
@@ -138,9 +180,9 @@ public class RecommenderSystems {
             for (Entry<Integer, User> entry : users.entrySet()) {
                 if (entry.getValue().getUserID() >= lastID && toTestUsers.contains(entry.getValue())) {
                     for (Entry<Integer, User> entryJ : users.entrySet()) {
-                        if (entry.getValue().getUserID() >= entryJ.getValue().getUserID()) {
-                            continue;
-                        } else {
+                        //if (entry.getValue().getUserID() >= entryJ.getValue().getUserID()) {
+                           // continue;
+                        //} else {
                             sameRatings = getSameItems(entry.getValue(), entryJ.getValue());
                             similarItems = sameRatings.size();
                             if (similarItems == 1) {
@@ -152,7 +194,7 @@ public class RecommenderSystems {
                             if (simValue == 0) {
                                 continue;
                             }
-                        }
+                       // }
 
                         commitCounter++;
 
@@ -176,7 +218,7 @@ public class RecommenderSystems {
         } finally {
             try {
                 insert.close();
-                //conn.setAutoCommit(true);
+                // conn.setAutoCommit(true);
             } catch (SQLException ex) {
                 ex.printStackTrace();
             }
@@ -184,8 +226,7 @@ public class RecommenderSystems {
     }
 
     /*
-      Function which gets items that both users have rated
-      ARGS: Two users
+	 * Function which gets items that both users have rated ARGS: Two users
      */
     public List<Integer> getSameItems(User u1, User u2) {
         List<Integer> sameItems = new ArrayList<Integer>();
@@ -208,8 +249,8 @@ public class RecommenderSystems {
     }
 
     /*
-      Function which computes the similarity coefficient
-      ARGS: Two users and List of similar items
+	 * Function which computes the similarity coefficient ARGS: Two users and List
+	 * of similar items
      */
     public float similarityCoefficient(User u1, User u2, List<Integer> sameRatings) {
         float u1Avg = u1.getAverageRating();
@@ -244,8 +285,7 @@ public class RecommenderSystems {
     }
 
     /*
-      Function which makes the predictions
-      ARGS: Connection
+	 * Function which makes the predictions ARGS: Connection
      */
     public void makePredictions(Connection conn) {
         String myQuery = "SELECT user, item FROM test";
@@ -261,26 +301,25 @@ public class RecommenderSystems {
                 insert.setFloat(1, prediction);
                 insert.setInt(2, users.get(rs.getInt(1)).getUserID());
                 insert.setInt(3, users.get(rs.getInt(2)).getUserID());
-                //insertQuery = "UPDATE predictions SET prediction = " + prediction + " WHERE user = "
-                   //   + rs.getInt(1) + " AND item = " + rs.getInt(2);
+                insertQuery = "UPDATE predictions SET prediction = " + prediction + " WHERE user = "
+                        + rs.getInt(1) + " AND item = " + rs.getInt(2);
                 insert.executeUpdate();
             }
-            conn.commit();
+            //conn.commit();
         } catch (SQLException e) {
             System.out.println(e.getMessage());
         }
     }
-   
+
     /*
-      Function which creates the predictions and populates the DB
-      ARGS: Connection, the user, the item and a threshold 
+	 * Function which creates the predictions and populates the DB ARGS: Connection,
+	 * the user, the item and a threshold
      */
     public float prediction(Connection conn, User user, User item, int threshold) { // 20-60
-        
-        float prediction = user.getAverageRating();
 
-        String myQuery = "SELECT colValue, similarity FROM matrix WHERE rowValue = " + user.getUserID()
-                + " ORDER BY simItems DESC LIMIT " + threshold;
+        float prediction = user.getAverageRating();
+        String myQuery = "SELECT * FROM (select colValue, similarity from matrix WHERE rowValue = " + user.getUserID()
+                + " ORDER BY simItems DESC LIMIT "+threshold+") ORDER BY similarity desc";
 
         HashMap<Integer, Float> neighbourhood = new HashMap<Integer, Float>();
 
@@ -288,8 +327,8 @@ public class RecommenderSystems {
             ResultSet rs = stmt.executeQuery(myQuery);
 
             while (rs.next()) {
-                //checking if he has rated the product
-                if (users.get(rs.getInt(1)).getRatings().containsKey(item.getUserID()) && rs.getFloat(2) > 0 && neighbourhood.size() < 50) {
+                // checking if he has rated the product
+                if (users.get(rs.getInt(1)).getRatings().containsKey(item.getUserID()) && rs.getFloat(2) > 0 && neighbourhood.size() < 40) {
                     neighbourhood.put(rs.getInt(1), rs.getFloat(2));
                 }
             }
@@ -298,10 +337,20 @@ public class RecommenderSystems {
         }
 
         float numerator = 0;
-        if (neighbourhood.size() > 5) {
+        int count = 0;
+        float sum = 0;
+         if (neighbourhood.size() < 10 || user.getRatings().size()<10) {
+            for (Entry<Integer, User> entry : users.entrySet()) {
+                if (entry.getValue().getRatings().containsKey(item.getUserID())) {
+                    count++;
+                    sum += (users.get(entry.getKey()).getRatings().get(item.getUserID()) - users.get(entry.getKey()).getAverageRating());
+                }
+            }
+            sum = sum / count;
+            prediction += sum;
+        } else {
             for (Entry<Integer, Float> entry : neighbourhood.entrySet()) {
-                numerator = numerator + (entry.getValue() * (users.get(entry.getKey()).getRatings().get(item.getUserID())
-                        - users.get(entry.getKey()).getAverageRating()));
+                numerator = numerator + users.get(entry.getKey()).getRatings().size() * (entry.getValue() * ((users.get(entry.getKey()).getRatings().get(item.getUserID()) - users.get(entry.getKey()).getAverageRating()) / users.get(entry.getKey()).getRatings().size()));
             }
 
             float denominator = 0;
@@ -311,27 +360,26 @@ public class RecommenderSystems {
             }
 
             prediction = prediction + (float) (numerator / denominator);
-
-            if (prediction < 1) {
-                prediction = 1;
-            } else if (prediction > 10) {
-                prediction = 10;
-            }
-        }
-        if(user.getUserID()%1000 == 0) {
-            System.out.println(user.getUserID() + " "+neighbourhood.size() + " " + prediction + " " + user.getAverageRating());
         }
 
+        if (prediction < 1) {
+            prediction = 1;
+        } else if (prediction > 10) {
+            prediction = 10;
+        }
+        //if (user.getUserID() % 1000 == 0) {
+        System.out.println(user.getUserID() + " " + neighbourhood.size() + " " + prediction + " " + user.getAverageRating()+" "+sum);
+        //}
         return prediction;
     }
 
-    //TO-DO: SLOPE ONE COMMENTS
+    // TO-DO: SLOPE ONE COMMENTS
     public void slopeOne(User u1, User u2) {
 
         float u1Avg = u1.getAverageRating();
         int sum = 0;
 
-        //move this on top
+        // move this on top
         for (Entry<Integer, Integer> entryK : u1.getRatings().entrySet()) {
             int diff = 0;
             int count = 0;
@@ -339,11 +387,9 @@ public class RecommenderSystems {
             for (Entry<Integer, User> entryL : users.entrySet()) {
                 if (u1.getUserID() != u2.getUserID() && u2.getRatings().size() > 0) {
 
-                    if (u2.getRatings().containsKey(u2.getUserID())
-                            && u2.getRatings().containsKey(entryK.getKey())) {
+                    if (u2.getRatings().containsKey(u2.getUserID()) && u2.getRatings().containsKey(entryK.getKey())) {
 
-                        diff += u2.getRatings().get(u2.getUserID())
-                                - u2.getRatings().get(entryK.getKey());
+                        diff += u2.getRatings().get(u2.getUserID()) - u2.getRatings().get(entryK.getKey());
 
                         count++;
                     }
@@ -381,7 +427,8 @@ public class RecommenderSystems {
                     int count = 0;
 
                     if (diffB.getValue().getRatings().containsKey(ratingsA.getKey())) {
-                        diff += diffA.getValue().getRatings().get(ratingsA.getKey()) - diffB.getValue().getRatings().get(ratingsA.getKey());
+                        diff += diffA.getValue().getRatings().get(ratingsA.getKey())
+                                - diffB.getValue().getRatings().get(ratingsA.getKey());
                         count++;
                     }
 
@@ -402,7 +449,7 @@ public class RecommenderSystems {
     public static void main(String[] args) {
         RecommenderSystems myJDBC = new RecommenderSystems();
         myJDBC.userBased(RecommenderSystems.connect());
-        //myJDBC.slope(SQLiteJDBCDriverConnection.connect());
-        //myJDBC.generateDifferences(SQLiteJDBCDriverConnection.connect());
+        // myJDBC.slope(SQLiteJDBCDriverConnection.connect());
+        // myJDBC.generateDifferences(SQLiteJDBCDriverConnection.connect());
     }
 }
