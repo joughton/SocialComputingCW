@@ -110,6 +110,7 @@ public class RecommenderSystems {
 
         try (Statement stmt = conn.createStatement()) {
             stmt.execute(createTable);
+            //see if it has been interrupted, delete last entry if so
             try {
                 ResultSet r = stmt.executeQuery(getLastID);
                 lastID = r.getInt(1);
@@ -121,6 +122,7 @@ public class RecommenderSystems {
             conn.setAutoCommit(false);
             insert = conn.prepareStatement(insertQuery);
             for (Entry<Integer, User> entry : users.entrySet()) {
+                //continue matrix if it has been interrupted
                 if (entry.getValue().getUserID() >= lastID && toTestUsers.contains(entry.getValue())) {
                     for (Entry<Integer, User> entryJ : users.entrySet()) {
                         sameRatings = getSameItems(entry.getValue(), entryJ.getValue());
