@@ -80,6 +80,7 @@ public class RecommenderSystems {
             selectTestUsers = "SELECT DISTINCT user FROM predictions";
             testUsers = stmt.executeQuery(selectTestUsers);
 
+            //get users in test set
             while (testUsers.next()) {
                 toTestUsers.add(users.get(testUsers.getInt(1)));
             }
