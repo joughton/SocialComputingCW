@@ -12,11 +12,9 @@ public class RecommenderSystems {
     /*
       ArrayList of users IDs
       HashMap of user IDs linked to users
-      HashMap for differences?
      */
     List<Integer> distinctUsers = new ArrayList<Integer>();
     Map<Integer, User> users = new HashMap<Integer, User>();
-    Map<Integer, HashMap<Integer, Integer>> differences = new HashMap<Integer, HashMap<Integer, Integer>>();
     Set<User> toTestUsers = new HashSet<User>();
     User user;
 
@@ -40,7 +38,7 @@ public class RecommenderSystems {
     //function which executes the flow for the user-based recommender system
     public void userBased(Connection conn) {
         this.selectDistinctUsers(conn);
-        //this.createSimilarityMatrix(conn);
+        this.createSimilarityMatrix(conn);
         this.makePredictions(conn);
     }
 
@@ -62,7 +60,7 @@ public class RecommenderSystems {
                 distinctUsers.add(rs.getInt(1));
             }
 
-            //populate the hashmaps of the users and the hashmap of users
+            //populate the hashmaps of the users and the hashmap of test users
             for (int i = 0; i < distinctUsers.size(); i++) {
                 selectUser = "SELECT itemID, rating FROM trainingset WHERE userID = " + distinctUsers.get(i);
 
@@ -125,9 +123,6 @@ public class RecommenderSystems {
             for (Entry<Integer, User> entry : users.entrySet()) {
                 if (entry.getValue().getUserID() >= lastID && toTestUsers.contains(entry.getValue())) {
                     for (Entry<Integer, User> entryJ : users.entrySet()) {
-                        //if (entry.getValue().getUserID() >= entryJ.getValue().getUserID()) {
-                        //  continue;
-                        //} else {
                         sameRatings = getSameItems(entry.getValue(), entryJ.getValue());
                         similarItems = sameRatings.size();
                         if (similarItems == 1) {
@@ -139,7 +134,6 @@ public class RecommenderSystems {
                         if (simValue == 0) {
                             continue;
                         }
-                        //}
 
                         commitCounter++;
 
@@ -163,7 +157,7 @@ public class RecommenderSystems {
         } finally {
             try {
                 insert.close();
-                //conn.setAutoCommit(true);
+                conn.setAutoCommit(true);
             } catch (SQLException ex) {
                 ex.printStackTrace();
             }
@@ -248,8 +242,6 @@ public class RecommenderSystems {
                 insert.setFloat(1, prediction);
                 insert.setInt(2, users.get(rs.getInt(1)).getUserID());
                 insert.setInt(3, users.get(rs.getInt(2)).getUserID());
-                //insertQuery = "UPDATE predictions SET prediction = " + prediction + " WHERE user = "
-                //   + rs.getInt(1) + " AND item = " + rs.getInt(2);
                 insert.executeUpdate();
             }
             conn.commit();
@@ -321,96 +313,9 @@ public class RecommenderSystems {
 
         return prediction;
     }
-
-    /*
-    //function which executes the flow for the slopeOne recommender system
-    public void slope(Connection conn) {
-        this.selectDistinctUsers(conn);
-        for (Entry<Integer, User> entryI : users.entrySet()) {
-            for (Entry<Integer, User> entryJ : users.entrySet()) {		//for every user-item pair
-                if (entryI.getValue().getUserID() != entryJ.getValue().getUserID()) {
-                    slopeOne(entryJ.getValue(), entryI.getValue());
-                }
-            }
-        }
-    }
     
-    public void slopeOne(User u1, User u2) {
-
-        float u1Avg = u1.getAverageRating();
-        int sum = 0;
-
-        //move this on top
-        for (Entry<Integer, Integer> entryK : u1.getRatings().entrySet()) {
-            int diff = 0;
-            int count = 0;
-
-            for (Entry<Integer, User> entryL : users.entrySet()) {
-                if (u1.getUserID() != u2.getUserID() && u2.getRatings().size() > 0) {
-
-                    if (u2.getRatings().containsKey(u2.getUserID())
-                            && u2.getRatings().containsKey(entryK.getKey())) {
-
-                        diff += u2.getRatings().get(u2.getUserID())
-                                - u2.getRatings().get(entryK.getKey());
-
-                        count++;
-                    }
-                }
-            }
-
-            if (count > 0) {
-                sum += diff / count;
-            }
-        }
-        System.out.println(u1Avg + (float) sum / u1.getRatings().size());
-    }
-
-    public void generateDifferences(Connection conn) {
-        selectDistinctUsers(conn);
-
-        for (Entry<Integer, User> diffA : users.entrySet()) {
-            if (!differences.containsKey(diffA.getKey())) {
-                HashMap<Integer, Integer> temp = new HashMap<Integer, Integer>();
-                differences.put(diffA.getKey(), temp);
-            }
-
-            for (Entry<Integer, User> diffB : users.entrySet()) {
-                if (!differences.containsKey(diffB.getKey())) {
-                    HashMap<Integer, Integer> temp2 = new HashMap<Integer, Integer>();
-                    differences.put(diffB.getKey(), temp2);
-                }
-
-                if (differences.get(diffA.getValue().getUserID()).containsKey(diffB.getValue().getUserID())) {
-                    continue;
-                }
-
-                for (Entry<Integer, Integer> ratingsA : diffA.getValue().getRatings().entrySet()) {
-                    int diff = 0;
-                    int count = 0;
-
-                    if (diffB.getValue().getRatings().containsKey(ratingsA.getKey())) {
-                        diff += diffA.getValue().getRatings().get(ratingsA.getKey()) - diffB.getValue().getRatings().get(ratingsA.getKey());
-                        count++;
-                    }
-
-                    if (count == 0) {
-                        differences.get(diffA.getKey()).put(diffB.getKey(), 0);
-                        differences.get(diffB.getKey()).put(diffA.getKey(), 0);
-                    } else {
-                        differences.get(diffA.getKey()).put(diffB.getKey(), diff);
-                        differences.get(diffB.getKey()).put(diffA.getKey(), -diff);
-                    }
-                }
-            }
-
-            System.out.println(diffA.getKey());
-        }
-    }*/
     public static void main(String[] args) {
         RecommenderSystems myJDBC = new RecommenderSystems();
         myJDBC.userBased(RecommenderSystems.connect());
-        //myJDBC.slope(SQLiteJDBCDriverConnection.connect());
-        //myJDBC.generateDifferences(SQLiteJDBCDriverConnection.connect());
     }
 }
