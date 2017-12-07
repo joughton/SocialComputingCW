@@ -38,7 +38,7 @@ public class RecommenderSystems {
     //function which executes the flow for the user-based recommender system
     public void userBased(Connection conn) {
         this.selectDistinctUsers(conn);
-        this.createSimilarityMatrix(conn);
+        //this.createSimilarityMatrix(conn);
         this.makePredictions(conn);
     }
 
@@ -248,6 +248,9 @@ public class RecommenderSystems {
                 insert.executeUpdate();
             }
             conn.commit();
+            System.out.println(countA+" "+countN+" "+countC);
+            int coverage = countN/countA;
+            System.out.println(coverage);
         } catch (SQLException e) {
             System.out.println(e.getMessage());
         }
@@ -257,8 +260,11 @@ public class RecommenderSystems {
       Function which creates the predictions and populates the DB
       ARGS: Connection, the user, the item and a threshold 
      */
+    int countN = 0;
+    int countC = 0;
+    int countA = 0;
     public float prediction(Connection conn, User user, User item, int threshold) { // 20-60
-
+        countA++;
         float prediction = user.getAverageRating();
         String myQuery = null;
         myQuery = "SELECT * FROM (select colValue, similarity from simMatrix WHERE rowValue = " + user.getUserID()
@@ -280,10 +286,11 @@ public class RecommenderSystems {
         }
 
         float numerator = 0;
+        int count = 0;
+        float sum = 0;
         
         if (neighbourhood.size() < 10 || user.getRatings().size()<5) {
-            int count = 0;
-            float sum = 0;
+            countN++;
             for (Entry<Integer, User> entry : users.entrySet()) {
                 if (entry.getValue().getRatings().containsKey(item.getUserID())) {
                     count++;
@@ -293,6 +300,7 @@ public class RecommenderSystems {
             sum = sum / count;
             prediction += sum;
         } else {
+            countC++;
             for (Entry<Integer, Float> entry : neighbourhood.entrySet()) {
                 numerator = numerator + users.get(entry.getKey()).getRatings().size() * (entry.getValue() * ((users.get(entry.getKey()).getRatings().get(item.getUserID()) - users.get(entry.getKey()).getAverageRating()) / users.get(entry.getKey()).getRatings().size()));
             }
