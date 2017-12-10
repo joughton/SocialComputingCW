@@ -38,7 +38,7 @@ public class RecommenderSystems {
     //function which executes the flow for the user-based recommender system
     public void userBased(Connection conn) {
         this.selectDistinctUsers(conn);
-        //this.createSimilarityMatrix(conn);
+        this.createSimilarityMatrix(conn);
         this.makePredictions(conn);
     }
 
@@ -289,7 +289,7 @@ public class RecommenderSystems {
         int count = 0;
         float sum = 0;
         
-        if (neighbourhood.size() < 10 || user.getRatings().size()<5) {
+        if (neighbourhood.size() < 10 || user.getRatings().size() < 5) {
             countN++;
             for (Entry<Integer, User> entry : users.entrySet()) {
                 if (entry.getValue().getRatings().containsKey(item.getUserID())) {
